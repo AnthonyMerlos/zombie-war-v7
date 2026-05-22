@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZOMBIE WAR - SURVIVAL</title>
+<link rel="stylesheet" href="/css/menu.css">
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="scanlines"></div>
+<div class="blood-drips" id="bloodDrips"></div>
+
+<!-- MAIN MENU -->
+<div class="menu-container" id="mainMenu">
+  <div class="logo-wrap">
+    <h1 class="title" id="titleFlicker">ZOMBIE WAR</h1>
+    <p class="subtitle">◈ SURVIVAL ◈</p>
+  </div>
+  <div class="mode-cards">
+    <div class="mode-card" id="btnBots" onclick="showBotMenu()">
+      <div class="mode-icon">🤖</div>
+      <div class="mode-name">JUGAR CON BOTS</div>
+      <div class="mode-desc">Solo o con IA aliada.<br>Sin conexión necesaria.</div>
+      <div class="mode-arrow">▶</div>
+    </div>
+    <div class="mode-card featured" id="btnOnline" onclick="showOnlineMenu()">
+      <div class="mode-badge">ONLINE</div>
+      <div class="mode-icon">🌐</div>
+      <div class="mode-name">JUGAR EN LÍNEA</div>
+      <div class="mode-desc">Multijugador — entra directo.<br>Otros jugadores te acompañan.</div>
+      <div class="mode-arrow">▶</div>
+    </div>
+  </div>
+  <div class="credits">ZOMBIE WAR v3.0 · MULTIPLAYER EDITION</div>
+</div>
+
+<!-- BOT MENU -->
+<div class="menu-container hidden" id="botMenu">
+  <h2 class="section-title">⚙ MODO BOTS</h2>
+  <div class="form-group">
+    <label>TU NOMBRE</label>
+    <input type="text" id="botPlayerName" placeholder="Sobreviviente" maxlength="20">
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="startBotGame()">▶ INICIAR GUERRA</button>
+    <button class="btn btn-back" onclick="showMain()">◀ VOLVER</button>
+  </div>
+</div>
+
+<!-- ONLINE MENU — solo pide nombre -->
+<div class="menu-container hidden" id="onlineMenu">
+  <h2 class="section-title">🌐 MODO ONLINE</h2>
+  <div class="form-group">
+    <label>TU NOMBRE</label>
+    <input type="text" id="onlinePlayerName" placeholder="Sobreviviente" maxlength="20" onkeydown="if(event.key==='Enter')joinGlobal()">
+  </div>
+  <div id="waitingMsg" style="display:none;text-align:center;color:#0ff;font-size:13px;margin:10px 0;letter-spacing:1px;">
+    <span id="waitingDots">⏳ Conectando</span><br>
+    <span id="playersOnline" style="color:#7fff7f;font-size:11px;margin-top:6px;display:block;"></span>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="btnJoinGlobal" onclick="joinGlobal()">▶ ENTRAR AL CAMPO</button>
+    <button class="btn btn-back" onclick="showMain()">◀ VOLVER</button>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/menu.js"></script>
+</body>
+</html>
