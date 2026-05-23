@@ -1,1537 +1,282 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>ZOMBIE WAR - SURVIVAL</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Creepster&family=Share+Tech+Mono&display=swap');
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;font-family:'Share Tech Mono',monospace;}
-#gc{position:relative;}
-#c{display:block;cursor:crosshair;border:2px solid #1a3a1a;}
-#hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
-  align-items:flex-start;padding:8px 12px;pointer-events:none;z-index:10;}
-.hl,.hc,.hr{display:flex;flex-direction:column;gap:3px;}
-.hc{align-items:center;}.hr{align-items:flex-end;}
-.st{font-size:12px;color:#7fff7f;text-shadow:0 0 8px #0f0;}
-.st span{color:#fff;}
-#hpb{width:150px;height:11px;background:#300;border:1px solid #f00;border-radius:2px;overflow:hidden;}
-#hpf{height:100%;background:linear-gradient(90deg,#f00,#f80);transition:width .15s;}
-#rd{font-family:'Creepster',cursive;font-size:26px;color:#f00;text-shadow:0 0 15px #f00,0 0 30px #800;}
-#firebar{width:150px;height:8px;background:#210;border:1px solid #f80;border-radius:2px;overflow:hidden;margin-top:2px;}
-#firefill{height:100%;background:linear-gradient(90deg,#f80,#ff0);width:0%;transition:width .1s;}
-#wp{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:5px;pointer-events:auto;z-index:10;}
-.wb{padding:4px 9px;background:rgba(0,20,0,.85);border:1px solid #0f0;color:#7fff7f;
-  font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;border-radius:3px;transition:all .15s;}
-.wb:hover{background:rgba(0,60,0,.9);border-color:#ff0;color:#ff0;}
-.wb.active{background:rgba(0,80,0,.95);border-color:#ff0;color:#ff0;box-shadow:0 0 8px #ff0;}
-#ov{position:absolute;inset:0;background:rgba(0,0,0,.9);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;z-index:20;gap:16px;}
-#ov h1{font-family:'Creepster',cursive;font-size:58px;color:#f00;
-  text-shadow:0 0 20px #f00,0 0 50px #800;letter-spacing:4px;text-align:center;line-height:1.1;}
-#ov p{color:#7fff7f;font-size:13px;text-align:center;max-width:460px;line-height:1.8;}
-#ov button{padding:11px 32px;background:#0a2a0a;border:2px solid #0f0;color:#0f0;
-  font-family:'Share Tech Mono',monospace;font-size:15px;cursor:pointer;border-radius:4px;
-  transition:all .2s;letter-spacing:2px;}
-#ov button:hover{background:#0f0;color:#000;box-shadow:0 0 20px #0f0;}
-#ov .btn-menu{border-color:#a00;color:#a00;margin-left:8px;}
-#ov .btn-menu:hover{background:#a00;color:#fff;}
-#mb{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);color:#ff0;
-  font-family:'Creepster',cursive;font-size:34px;text-shadow:0 0 20px #f80;
-  pointer-events:none;z-index:15;opacity:0;transition:opacity .4s;text-align:center;}
+#!/usr/bin/env python3
+"""
+ZOMBIE WAR - Patch Script
+Aplica 3 cambios al juego:
+1. Controles moviles (joystick virtual)
+2. Boss mas facil
+3. Fix de sincronizacion del boss en modo online
 
-/* Online player tags */
-#onlinePlayers{position:absolute;top:0;right:0;padding:6px 8px;z-index:11;pointer-events:none;display:flex;flex-direction:column;gap:3px;}
-.oplayer{font-size:10px;padding:2px 6px;border-radius:2px;border:1px solid rgba(0,200,0,.2);background:rgba(0,20,0,.6);}
-.oplayer.dead{color:#f44;border-color:rgba(200,0,0,.2);}
+Uso: python3 apply_patches.py game.html game_new.html
+"""
+import sys
 
-/* Chat in-game */
-#gamechat{position:absolute;bottom:40px;left:8px;width:260px;z-index:11;}
-#chatlog{max-height:130px;overflow:hidden;display:flex;flex-direction:column;gap:3px;justify-content:flex-end;}
-.gcmsg{font-size:11px;color:#c8ffc8;background:rgba(0,18,0,.82);padding:4px 8px;border-radius:6px;
-  border-left:3px solid #0f0;animation:fadeout 8s forwards;word-break:break-word;line-height:1.4;}
-.gcmsg.system{color:#7ec8ff;border-left-color:#0af;font-style:italic;}
-.gcmsg .cmname{color:#7fff7f;font-weight:bold;}
-.gcmsg .cmname.me{color:#ffff55;}
-@keyframes fadeout{0%,75%{opacity:1;}100%{opacity:0;}}
-#chatbar{display:flex;gap:4px;margin-top:5px;align-items:center;}
-#chatHint{font-size:10px;color:#3a6a3a;pointer-events:none;letter-spacing:1px;padding:3px 6px;}
-#chatform{display:none;flex:1;gap:4px;}
-#chatinput{flex:1;background:rgba(0,20,0,.95);border:1px solid #0f0;color:#7fff7f;
-  font-family:'Share Tech Mono',monospace;font-size:12px;padding:4px 8px;border-radius:4px;outline:none;
-  box-shadow:0 0 8px rgba(0,255,0,0.2);}
-#chatSendBtn{background:rgba(0,40,0,.9);border:1px solid #0f0;color:#0f0;padding:4px 8px;
-  border-radius:4px;cursor:pointer;font-size:12px;}
-#chatSendBtn:hover{background:#0f0;color:#000;}
-</style>
-</head>
-<body>
-<div id="gc">
-  <canvas id="c" width="820" height="620"></canvas>
-  <div id="hud">
-    <div class="hl">
-      <div class="st">❤ VIDA</div>
-      <div id="hpb"><div id="hpf" style="width:100%"></div></div>
-      <div class="st">🔥 CADENCIA</div>
-      <div id="firebar"><div id="firefill"></div></div>
-      <div class="st">KILLS: <span id="kc">0</span></div>
-      <div class="st" id="modeLabel" style="color:#ff0;font-size:10px;letter-spacing:1px;margin-top:2px;"></div>
-    </div>
-    <div class="hc">
-      <div id="rd">RONDA 1</div>
-      <div class="st" style="font-size:11px">Zombies: <span id="zc">0</span></div>
-    </div>
-    <div class="hr">
-      <div class="st">ARMA: <span id="wn">PISTOLA</span> [INF]</div>
-      <div class="st">GRANADAS: <span id="gc2">3</span></div>
-      <div class="st">SOLDADOS: <span id="sol">0</span></div>
-      <div class="st">TANQUES: <span id="tan">0</span></div>
-      <div class="st" style="pointer-events:auto;margin-top:4px">
-        <button id="sprintBtn" onclick="sprintToggle=!sprintToggle;this.style.color=sprintToggle?'#0f0':'#7fff7f';this.style.borderColor=sprintToggle?'#0f0':'#3a7a3a';this.style.boxShadow=sprintToggle?'0 0 10px #0f0':'none';this.textContent='SHIFT = SPRINT ['+(sprintToggle?'ON ⚡':'OFF')+']'" style="background:rgba(0,20,0,.85);border:1px solid #3a7a3a;color:#7fff7f;font-family:'Share Tech Mono',monospace;font-size:11px;padding:4px 10px;cursor:pointer;border-radius:3px;transition:all .15s">SHIFT = SPRINT [OFF]</button>
-      </div>
-    </div>
-  </div>
-  <div id="wp"></div>
-  <div id="mb"></div>
-  <div id="onlinePlayers"></div>
-  <div id="gamechat">
-    <div id="chatlog"></div>
-    <div id="chatbar">
-      <span id="chatHint">[T] CHAT</span>
-      <div id="chatform">
-        <input id="chatinput" placeholder="Escribe y presiona Enter..." maxlength="120">
-        <button id="chatSendBtn" onclick="sendChatMsg()">↵</button>
-      </div>
-    </div>
-  </div>
-  <div id="ov">
-    <h1>ZOMBIE WAR</h1>
-    <p>
-      <b style="color:#ff0">MOVER:</b> WASD  &nbsp;|&nbsp;  <b style="color:#ff0">APUNTAR:</b> Ratón  &nbsp;|&nbsp;  <b style="color:#ff0">DISPARAR:</b> Click<br>
-      <b style="color:#ff0">Mantener click:</b> sube cadencia de disparo!<br>
-      <b style="color:#ff0">GRANADA:</b> G  &nbsp;|&nbsp;  <b style="color:#ff0">ARMAS:</b> 1 2 3 4  &nbsp;|&nbsp;  <b style="color:#ff0">CHAT:</b> T<br>
-      <b style="color:#f88">Las casas tienen paredes - busca la puerta para entrar!</b><br>
-      <b style="color:#0ff">BOSS cada 5 rondas: R5, R10, R15... cada vez MAS FUERTE</b><br>
-      Recoge VENDAS (cruz blanca) y BOTIQUINES (caja verde) para curarte.
-    </p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-      <button id="sb">INICIAR GUERRA</button>
-      <button class="btn-menu" onclick="goMenu()">◀ MENÚ</button>
-    </div>
-  </div>
-</div>
+if len(sys.argv) < 3:
+    print("Uso: python3 apply_patches.py <archivo_entrada.html> <archivo_salida.html>")
+    sys.exit(1)
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-// ── Session / Mode ────────────────────────────────────────────────────────
-const GAME_MODE   = sessionStorage.getItem('gameMode') || 'bots';    // 'bots' | 'online'
-const PLAYER_NAME = sessionStorage.getItem('playerName') || 'Jugador';
-const SERVER_ID   = sessionStorage.getItem('serverId') || null;
-const IS_HOST     = sessionStorage.getItem('isHost') === '1';
-const MY_SOCKET_ID = sessionStorage.getItem('socketId') || null;
-// spawnMap: pid -> {x,y} assigned by server when game started
-let SPAWN_MAP = {};
-try { SPAWN_MAP = JSON.parse(sessionStorage.getItem('spawnMap') || '{}'); } catch(e) {}
+with open(sys.argv[1], 'r', encoding='utf-8') as f:
+    html = f.read()
 
-document.getElementById('modeLabel').textContent =
-  GAME_MODE === 'online' ? '🌐 ONLINE' : '🤖 BOTS';
+original_len = len(html)
+changes = 0
 
-function goMenu(){ window.location.href = '/'; }
+def patch(html, old, new, name):
+    global changes
+    if old in html:
+        changes += 1
+        print(f"  OK: {name}")
+        return html.replace(old, new, 1)
+    else:
+        print(f"  SKIP (no encontrado): {name}")
+        return html
 
-// ── Socket (only used in online mode) ────────────────────────────────────
-let socket = null;
-// remotePlayers indexed by socket.id -> { id, name, x, y, angle, hp, maxHp, kills, alive, weapon }
-let remotePlayers = {};
-// Map socket.id -> name, for quick lookup when players reconnect
-let idToName = {};
+# ================================================================
+# PATCH 1: BOSS MAS FACIL
+# ================================================================
+print("\n[1] Bajando dificultad del boss...")
 
-function getOrCreateRemote(id, name) {
-  if (!remotePlayers[id]) {
-    // Check if we already have this player by name (reconnect with new socket id)
-    if (name) {
-      const oldEntry = Object.entries(remotePlayers).find(([,p]) => p.name === name);
-      if (oldEntry) {
-        // Move the entry to the new id
-        remotePlayers[id] = { ...oldEntry[1], id };
-        delete remotePlayers[oldEntry[0]];
-        return remotePlayers[id];
-      }
-    }
-    const csp = Object.values(SPAWN_MAP)[0] || { x: 1300, y: 1100 };
-    remotePlayers[id] = { id, name: name || '?', alive: true, hp: 120, maxHp: 120, kills: 0, x: csp.x, y: csp.y };
-  }
-  return remotePlayers[id];
-}
+html = patch(html,
+    "  const hpScale=bn===1?3500:bn===2?6000:bn===3?10000:bn===4?16000:Math.floor(16000*Math.pow(1.7,bn-4));\n  const spdScale=Math.min(1.6+bn*.3,4.2);",
+    "  const hpScale=bn===1?2100:bn===2?3600:bn===3?6000:bn===4?9600:Math.floor(9600*Math.pow(1.7,bn-4));\n  const spdScale=Math.min(1.3+bn*.24,3.4);",
+    "HP y velocidad del boss"
+)
 
-if (GAME_MODE === 'online') {
-  socket = io();
+html = patch(html,
+    "x:MW/2,y:160,hp:hpScale+round*150,maxHp:hpScale+round*150,\n    spd:spdScale,sz:szScale,angle:0,lastShot:0,lastAtk:0,\n    shootCd:Math.max(400,900-bn*80),charging:false,chargeSpd:Math.min(spdScale+1.5,5),",
+    "x:MW/2,y:160,hp:hpScale+round*90,maxHp:hpScale+round*90,\n    spd:spdScale,sz:szScale,angle:0,lastShot:0,lastAtk:0,\n    shootCd:Math.max(700,1400-bn*80),charging:false,chargeSpd:Math.min(spdScale+1.2,4),",
+    "HP por ronda y cadencia de ataques"
+)
 
-  socket.on('connect', () => {
-    socket.emit('joinGlobalRoom', { playerName: PLAYER_NAME });
-  });
+html = patch(html,
+    "if(now-boss.lastAtk>700){boss.lastAtk=now;hurtP(25+boss.bossNum*5);",
+    "if(now-boss.lastAtk>700){boss.lastAtk=now;hurtP(14+boss.bossNum*3);",
+    "Daño de contacto del boss"
+)
 
-  // ── Player positions (called ~20fps per remote player) ────────────────
-  socket.on('remotePlayerState', (data) => {
-    const rp = getOrCreateRemote(data.id, data.name);
-    Object.assign(rp, data);
-    if (data.name) rp.name = data.name;
-    // no updateOnlineHUD here - called in draw loop to avoid spam
-  });
+html = patch(html,
+    "  if(boss.hp<boss.maxHp*.33&&!boss.charging){",
+    "  if(boss.hp<boss.maxHp*.15&&!boss.charging){",
+    "Umbral de enrage del boss (33%→15%)"
+)
 
-  // ── Remote bullets (visual only) ──────────────────────────────────────
-  socket.on('remoteBullet', (data) => {
-    if (bullets) bullets.push({ x:data.x, y:data.y, vx:data.vx, vy:data.vy,
-      dmg:0, life:60, col:'#00ffff', ally:true, expl:false, blastR:0, remote:true });
-  });
+html = patch(html,
+    "  const shots=Math.min(3+b.bossNum,9);\n  for(let i=0;i<shots;i++){\n    const a=base+((i-(shots-1)/2)*.3);\n    bullets.push({x:b.x,y:b.y,vx:Math.cos(a)*6,vy:Math.sin(a)*6,\n      dmg:18+b.bossNum*4,life:140,col:b.col2,fboss:true,expl:true,blastR:48+b.bossNum*4});",
+    "  const shots=Math.min(2+b.bossNum,7);\n  for(let i=0;i<shots;i++){\n    const a=base+((i-(shots-1)/2)*.3);\n    bullets.push({x:b.x,y:b.y,vx:Math.cos(a)*5,vy:Math.sin(a)*5,\n      dmg:12+b.bossNum*2,life:110,col:b.col2,fboss:true,expl:true,blastR:36+b.bossNum*3});",
+    "Disparo spread del boss (menos proyectiles y daño)"
+)
 
-  socket.on('remotePlayerDied', ({ id }) => {
-    if (remotePlayers[id]) remotePlayers[id].alive = false;
-    updateOnlineHUD();
-  });
+# ================================================================
+# PATCH 2: FIX BOSS SYNC ONLINE
+# ================================================================
+print("\n[2] Arreglando sincronizacion del boss en online...")
 
-  // ── ZOMBIE SYNC: clients receive zombie state from host ───────────────
-  socket.on('zombieSync', (data) => {
-    if (IS_HOST) return;
-    // Preserve zid so client can report hits reliably
-    zombies = (data.zombies || []).map(z => ({ ...z, zid: z.zid }));
-    bossActive = data.bossActive || false;
-    if (data.boss) boss = data.boss; else boss = null;
-    kills = data.kills !== undefined ? data.kills : kills;
-    if (data.round && data.round !== round) {
-      round = data.round;
-      showMsg(isBossRound(round)?'-- BOSS EN CAMINO --':'RONDA '+round,1500);
-      updateHUD();
-    }
-    // Sync pickups from host
-    if (data.pickups) {
-      pickups = data.pickups.map(p => ({...p, dmg: p.dmg||60}));
-    }
-    updateHUD();
-  });
+html = patch(html,
+    "    zombies = (data.zombies || []).map(z => ({ ...z, zid: z.zid }));\n    bossActive = data.bossActive || false;\n    if (data.boss) boss = data.boss; else boss = null;",
+    """    zombies = (data.zombies || []).map(z => ({ ...z, zid: z.zid }));
+    // FIX: sincronizar bossActive correctamente desde el host
+    bossActive = data.bossActive === true;
+    if (data.boss && bossActive) {
+      if (!boss) boss = {};
+      Object.assign(boss, data.boss);
+    } else {
+      boss = null;
+    }""",
+    "Receptor zombieSync en cliente (bossActive + boss merge)"
+)
 
-  // ── Host receives damage reports from clients zombie hits ─────────────
-  socket.on('clientZombieHit', ({ zid, zombieIdx, dmg, x, y }) => {
-    if (!IS_HOST) return;
-    // Find by zid (reliable) or fall back to index
-    let idx = zid != null ? zombies.findIndex(z => z.zid === zid) : zombieIdx;
-    if (idx < 0) return;
-    const z = zombies[idx];
-    if (!z) return;
-    z.hp -= dmg;
-    if (spawnPart) spawnPart(x, y, '#f00', 2);
-    if (z.hp <= 0) { if (maybeDrop) maybeDrop(z.x, z.y); kills++; zombies.splice(idx, 1); if (checkEnd) checkEnd(); }
-  });
-
-  socket.on('playerJoined', ({ player, players }) => {
-    players.forEach(p => {
-      if (p.id !== socket.id) {
-        const rp = getOrCreateRemote(p.id, p.name);
-        Object.assign(rp, { name: p.name, alive: p.alive !== false, hp: p.hp||120, maxHp: p.maxHp||120, kills: p.kills||0 });
-      }
-    });
-    if (player.name !== PLAYER_NAME) addGameChat(`★ ${player.name} se unió`, true);
-    updateOnlineHUD();
-    // If we're the host, immediately send zombie state to the new player
-    if (IS_HOST) { lastZombieSync = 0; }
-  });
-
-  socket.on('playerLeft', ({ id, players }) => {
-    const name = remotePlayers[id]?.name || '?';
-    if (name !== PLAYER_NAME) {
-      delete remotePlayers[id];
-      addGameChat(`✖ ${name} salió`, true);
-    }
-    updateOnlineHUD();
-  });
-
-  socket.on('hostTransferred', ({ newHostId, players }) => {
-    players.forEach(p => {
-      if (p.id !== socket.id) {
-        const rp = getOrCreateRemote(p.id, p.name);
-        Object.assign(rp, p);
-      }
-    });
-    addGameChat('El host cambió', true);
-  });
-
-  socket.on('chatMessage', ({ from, text }) => { if(from !== PLAYER_NAME) addGameChat(text, false, from, false); });
-
-  socket.on('roundSync', ({ round: r }) => {
-    if (!IS_HOST) { round = r; updateHUD(); }
-  });
-
-  socket.on('damagePlayer', ({ targetId, dmg }) => {
-    if (socket.id === targetId) hurtP(dmg);
-  });
-
-  // Handle both reconnect (joinedServer) and fresh join (globalRoomJoined)
-  function onJoinedRoom({ players, isHost: serverIsHost }) {
-    // All players spawn at center — use that as fallback if server hasn't set positions yet
-    const CENTER = { x: MW / 2, y: MH / 2 };
-    // Sync all players we don't know yet
-    if (players) {
-      players.forEach(p => {
-        if (p.id !== socket.id) {
-          const rp = getOrCreateRemote(p.id, p.name);
-          // Use server position if valid, otherwise use spawn center so remote appears next to you
-          const spawnX = (p.x != null && p.x > 0) ? p.x : CENTER.x;
-          const spawnY = (p.y != null && p.y > 0) ? p.y : CENTER.y;
-          Object.assign(rp, {
-            name: p.name || rp.name,
-            alive: p.alive !== false,
-            hp: p.hp || rp.hp || 120,
-            maxHp: p.maxHp || rp.maxHp || 120,
-            kills: p.kills || 0,
-            x: rp.x != null ? rp.x : spawnX,
-            y: rp.y != null ? rp.y : spawnY,
-          });
-        }
-      });
-      updateOnlineHUD();
-    }
-    lastEmit = 0;
-    startGameEngine();
-    // Immediately broadcast position multiple times so remotes see us fast
-    const sends = [50, 150, 300, 500, 800, 1200, 2000];
-    sends.forEach(t => setTimeout(() => { lastEmit = 0; emitState(); }, t));
-  }
-  socket.on('joinedServer', onJoinedRoom);
-  socket.on('globalRoomJoined', onJoinedRoom);
-}
-
-// ── Online HUD ────────────────────────────────────────────────────────────
-function updateOnlineHUD() {
-  if (GAME_MODE !== 'online') return;
-  const el = document.getElementById('onlinePlayers');
-  el.innerHTML = Object.entries(remotePlayers).map(([id, p]) =>
-    `<div class="oplayer${p.alive === false ? ' dead' : ''}">
-      ${p.name || '?'} ${p.alive === false ? '☠' : `❤${Math.max(0, p.hp||0)}`} ☠${p.kills||0}
-    </div>`
-  ).join('');
-}
-
-// ── Game Chat ─────────────────────────────────────────────────────────────
-let chatOpen = false;
-function addGameChat(msg, isSystem=false, senderName='', isMe=false) {
-  const log = document.getElementById('chatlog');
-  const d = document.createElement('div');
-  d.className = 'gcmsg' + (isSystem ? ' system' : '');
-  if (senderName) {
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'cmname' + (isMe ? ' me' : '');
-    nameSpan.textContent = senderName + ': ';
-    d.appendChild(nameSpan);
-    d.appendChild(document.createTextNode(msg));
-  } else {
-    d.textContent = msg;
-  }
-  log.appendChild(d);
-  // Keep only last 10 messages
-  while(log.children.length > 10) log.removeChild(log.firstChild);
-  setTimeout(() => { if(d.parentNode) d.remove(); }, 8500);
-}
-
-window.sendChatMsg = function() {
-  const inp = document.getElementById('chatinput');
-  const msg = inp.value.trim();
-  if (msg && socket) {
-    socket.emit('chatMessage', { message: msg });
-    // Show own message immediately
-    addGameChat(msg, false, PLAYER_NAME, true);
-  }
-  inp.value = '';
-  closeChatInput();
-};
-
-document.getElementById('chatinput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { sendChatMsg(); e.preventDefault(); }
-  if (e.key === 'Escape') closeChatInput();
-  e.stopPropagation();
-});
-
-function openChatInput() {
-  chatOpen = true;
-  document.getElementById('chatHint').style.display = 'none';
-  document.getElementById('chatform').style.display = 'flex';
-  document.getElementById('chatinput').focus();
-}
-function closeChatInput() {
-  chatOpen = false;
-  document.getElementById('chatform').style.display = 'none';
-  document.getElementById('chatHint').style.display = 'block';
-  canvas.focus();
-}
-
-if (GAME_MODE !== 'online') {
-  document.getElementById('chatHint').style.display = 'none';
-}
-
-// ── Emit state to server ──────────────────────────────────────────────────
-let lastEmit = 0;
-let lastZombieSync = 0;
-
-function emitState() {
-  if (!socket || GAME_MODE !== 'online' || !player) return;
-  const now = Date.now();
-  if (now - lastEmit < 50) return;
-  lastEmit = now;
-  socket.emit('playerState', {
-    x: player.x, y: player.y, angle: player.angle,
-    hp: player.hp, maxHp: player.maxHp,
-    kills, alive: player.hp > 0,
-    weapon: WEAPONS[wepIdx]?.name,
-    name: PLAYER_NAME,
-  });
-
-  // HOST: sync zombie world to all clients ~20fps
-  if (IS_HOST && now - lastZombieSync > 80) {
-    lastZombieSync = now;
-    // Build compact zombie list
-    const zdata = zombies.map(z => ({
-      zid: z.zid,
-      x: Math.round(z.x), y: Math.round(z.y),
-      hp: z.hp, maxHp: z.maxHp,
-      sz: z.sz, col: z.col, angle: z.angle, walk: z.walk,
-      ranged: z.ranged, typeIdx: z.typeIdx,
-    }));
-    const bossData = boss ? {
+html = patch(html,
+    "    const bossData = boss ? {\n      x: Math.round(boss.x), y: Math.round(boss.y),\n      hp: boss.hp, maxHp: boss.maxHp,\n      sz: boss.sz, col1: boss.col1, col2: boss.col2, col3: boss.col3,\n      angle: boss.angle, bossNum: boss.bossNum, eyeCol: boss.eyeCol,\n    } : null;",
+    """    const bossData = boss ? {
       x: Math.round(boss.x), y: Math.round(boss.y),
       hp: boss.hp, maxHp: boss.maxHp,
       sz: boss.sz, col1: boss.col1, col2: boss.col2, col3: boss.col3,
       angle: boss.angle, bossNum: boss.bossNum, eyeCol: boss.eyeCol,
-    } : null;
-    // Sync pickups every 500ms (less critical)
-    const pickupData = (now - (lastZombieSync - 50)) % 500 < 55
-      ? pickups.map(p => ({x:Math.round(p.x),y:Math.round(p.y),type:p.type,life:p.life,blastR:p.blastR}))
-      : undefined;
-    socket.emit('zombieSync', {
-      zombies: zdata, boss: bossData, bossActive,
-      kills, round,
-      ...(pickupData ? {pickups: pickupData} : {}),
-    });
-  }
-}
+      charging: boss.charging||false, dashing: boss.dashing||false,
+      lastAbility: boss.lastAbility||null,
+    } : null;""",
+    "Host envia datos de render del boss (charging, dashing, lastAbility)"
+)
 
-// ── Client fires at zombie: report hit to host ────────────────────────────
-function reportZombieHit(zombieIdx, dmg, x, y) {
-  if (!socket || !IS_HOST) {
-    socket.emit('clientZombieHit', { zombieIdx, dmg, x, y });
-  }
-}
+# ================================================================
+# PATCH 3: CONTROLES MOVILES
+# ================================================================
+print("\n[3] Agregando controles moviles...")
 
-// ═══════════════════════════════════════════════════════
-//  GAME ENGINE (original, adapted)
-// ═══════════════════════════════════════════════════════
-const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
-const W=820,H=620,MW=2600,MH=2200;
+mobile_css = """
+/* ── Mobile touch controls ─────────────────────────────────────────── */
+#mobileCtrl{display:none;position:absolute;inset:0;pointer-events:none;z-index:12;}
+#joystickZone{position:absolute;left:10px;bottom:55px;width:130px;height:130px;pointer-events:auto;}
+#joystickBase{position:absolute;inset:0;border-radius:50%;background:rgba(0,255,0,.07);border:2px solid rgba(0,255,0,.22);}
+#joystickThumb{position:absolute;width:54px;height:54px;border-radius:50%;background:rgba(0,220,0,.20);border:2px solid rgba(0,255,0,.45);left:50%;top:50%;transform:translate(-50%,-50%);}
+#mobileButtons{position:absolute;right:10px;bottom:55px;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:auto;}
+.mbtn{border-radius:50%;border:2px solid rgba(0,255,0,.35);background:rgba(0,25,0,.80);color:#7fff7f;font-family:'Share Tech Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;text-align:center;user-select:none;-webkit-user-select:none;line-height:1.3;touch-action:manipulation;}
+#mFireBtn{width:80px;height:80px;border-color:rgba(255,200,0,.55);color:#ff0;font-size:12px;background:rgba(30,20,0,.85);}
+#mFireBtn.firing{background:rgba(80,50,0,.95);border-color:rgba(255,220,0,.9);}
+#mGrenBtn{width:58px;height:58px;border-color:rgba(255,80,0,.4);color:#f80;}
+#mSprintBtn{width:54px;height:54px;border-color:rgba(0,200,200,.35);color:#0ff;font-size:10px;}
+#mWepRow{display:flex;gap:5px;pointer-events:auto;position:absolute;left:50%;transform:translateX(-50%);bottom:8px;}
+.mwbtn{padding:5px 9px;border-radius:5px;border:1px solid rgba(0,255,0,.28);background:rgba(0,18,0,.82);color:#7fff7f;font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+.mwbtn.active{border-color:#ff0;color:#ff0;background:rgba(40,30,0,.9);}
+@media (pointer:coarse){#mobileCtrl{display:block;}}
+"""
 
-const WEAPONS=[
-  {name:'PISTOLA', k:'1', dmg:22, baseRate:280, minRate:80,  bcount:1, spread:.04, color:'#ff0', bspd:10},
-  {name:'ESCOPETA',k:'2', dmg:18, baseRate:600, minRate:200, bcount:7, spread:.28, color:'#f80', bspd:9},
-  {name:'MINIGUN', k:'3', dmg:9,  baseRate:90,  minRate:30,  bcount:1, spread:.09, color:'#0ff', bspd:11},
-  {name:'BAZUCA',  k:'4', dmg:140,baseRate:1400,minRate:900, bcount:1, spread:.01, color:'#f0f', bspd:7, expl:true,blastR:85},
-];
-const ZTYPES=[
-  {name:'walker', hp:55,  spd:1.2,  dmg:8,  sz:12, col:'#3d9c3d', smart:false},
-  {name:'runner', hp:28,  spd:2.6,  dmg:6,  sz:10, col:'#9ccc65', smart:false},
-  {name:'brute',  hp:180, spd:0.65, dmg:20, sz:20, col:'#1b5e20', smart:false},
-  {name:'spitter',hp:45,  spd:1.5,  dmg:5,  sz:11, col:'#558b2f', ranged:true, smart:false},
-  {name:'elite',  hp:280, spd:1.6,  dmg:18, sz:15, col:'#c62828', smart:true},
-  {name:'armored',hp:500, spd:0.8,  dmg:25, sz:22, col:'#4a148c', smart:true},
-  {name:'mutant', hp:140, spd:2.2,  dmg:12, sz:13, col:'#ff6f00', smart:true, ranged:true},
-  {name:'shadow', hp:90,  spd:3.2,  dmg:14, sz:11, col:'#212121', smart:true},
-  {name:'titan',  hp:900, spd:0.55, dmg:35, sz:26, col:'#880e4f', smart:true},
-];
-const HOUSES=[
-  {x:100,y:80,w:170,h:130,door:{s:'b',p:85}},{x:480,y:60,w:190,h:120,door:{s:'b',p:95}},
-  {x:880,y:100,w:160,h:140,door:{s:'l',p:70}},{x:180,y:480,w:200,h:160,door:{s:'r',p:80}},
-  {x:620,y:460,w:175,h:150,door:{s:'b',p:87}},{x:1080,y:430,w:190,h:160,door:{s:'l',p:80}},
-  {x:1380,y:100,w:165,h:140,door:{s:'b',p:82}},{x:1680,y:280,w:180,h:130,door:{s:'r',p:65}},
-  {x:280,y:880,w:165,h:130,door:{s:'t',p:82}},{x:780,y:930,w:200,h:150,door:{s:'b',p:100}},
-  {x:1280,y:780,w:185,h:160,door:{s:'l',p:82}},{x:1780,y:680,w:165,h:140,door:{s:'t',p:82}},
-  {x:80,y:1380,w:180,h:130,door:{s:'r',p:65}},{x:580,y:1280,w:175,h:150,door:{s:'b',p:87}},
-  {x:1080,y:1180,w:195,h:145,door:{s:'t',p:97}},{x:1580,y:1080,w:165,h:130,door:{s:'l',p:65}},
-  {x:380,y:1680,w:185,h:150,door:{s:'b',p:92}},{x:980,y:1640,w:205,h:145,door:{s:'r',p:72}},
-  {x:1480,y:1500,w:170,h:140,door:{s:'b',p:85}},{x:2000,y:400,w:180,h:150,door:{s:'l',p:75}},
-  {x:2100,y:900,w:165,h:140,door:{s:'t',p:82}},{x:200,y:1900,w:180,h:130,door:{s:'r',p:65}},
-  {x:900,y:1850,w:195,h:140,door:{s:'b',p:97}},
-];
-const GAP=28;
-function houseBlocks(x,y,r,h){
-  if(x+r<h.x||x-r>h.x+h.w||y+r<h.y||y-r>h.y+h.h)return false;
-  const d=h.door;
-  if(d.s==='b'&&y+r>h.y+h.h-22){const gx=h.x+d.p-GAP/2;if(x>gx-r&&x<gx+GAP+r)return false;}
-  if(d.s==='t'&&y-r<h.y+22)    {const gx=h.x+d.p-GAP/2;if(x>gx-r&&x<gx+GAP+r)return false;}
-  if(d.s==='l'&&x-r<h.x+22)    {const gy=h.y+d.p-GAP/2;if(y>gy-r&&y<gy+GAP+r)return false;}
-  if(d.s==='r'&&x+r>h.x+h.w-22){const gy=h.y+d.p-GAP/2;if(y>gy-r&&y<gy+GAP+r)return false;}
-  return true;
-}
-function anyHouseBlocks(x,y,r){for(const h of HOUSES)if(houseBlocks(x,y,r,h))return true;return false;}
-const SP=[
-  {x:50,y:50},{x:MW-50,y:50},{x:50,y:MH-50},{x:MW-50,y:MH-50},
-  {x:MW/2,y:50},{x:MW/2,y:MH-50},{x:50,y:MH/2},{x:MW-50,y:MH/2},
-  {x:300,y:MH-80},{x:MW-300,y:80},{x:MW/3,y:MH-80},{x:2*MW/3,y:80},
-];
+if '</style>' in html:
+    html = html.replace('</style>', mobile_css + '</style>', 1)
+    changes += 1
+    print("  OK: CSS de controles moviles")
 
-let gs_state='menu',cam={x:0,y:0};
-let zombieIdCounter=0;
-let player,bullets,zombies,allies,particles,explosions,pickups;
-let round,kills,grenades,wepIdx,fireCharge,lastShot,mouse={x:410,y:310},keys={};
-let bossActive=false,boss=null,mouseDown=false,lastTime=0,roundTrans=false,sprintToggle=false;
-let bossCount=0;
-function isBossRound(r){return r===3||r===6||(r>6&&r%5===0);}
-function getBossNum(r){
-  if(r===3)return 1;if(r===6)return 2;
-  if(r>6)return 2+Math.floor((r-6)/5);
-  return 1;
-}
+mobile_html = """
+  <!-- Mobile controls -->
+  <div id="mobileCtrl">
+    <div id="joystickZone">
+      <div id="joystickBase"></div>
+      <div id="joystickThumb"></div>
+    </div>
+    <div id="mWepRow">
+      <div class="mwbtn active" id="mwb0" onclick="wepIdx=0;updateHUD();updMWep()">1 PISTOLA</div>
+      <div class="mwbtn" id="mwb1" onclick="wepIdx=1;updateHUD();updMWep()">2 ESCOPETA</div>
+      <div class="mwbtn" id="mwb2" onclick="wepIdx=2;updateHUD();updMWep()">3 MINIGUN</div>
+      <div class="mwbtn" id="mwb3" onclick="wepIdx=3;updateHUD();updMWep()">4 BAZUCA</div>
+    </div>
+    <div id="mobileButtons">
+      <div id="mFireBtn" class="mbtn">&#128293; FUEGO</div>
+      <div id="mGrenBtn" class="mbtn">&#128163; GRANADA</div>
+      <div id="mSprintBtn" class="mbtn">&#9889; SPRINT</div>
+    </div>
+  </div>
+"""
 
-// Spawn points for online players (spread around center of map)
-const ONLINE_SPAWNS=[
-  {x:MW/2,      y:MH/2},
-  {x:MW/2+180,  y:MH/2-180},
-  {x:MW/2-180,  y:MH/2+180},
-  {x:MW/2+180,  y:MH/2+180},
-  {x:MW/2-180,  y:MH/2-180},
-  {x:MW/2,      y:MH/2-240},
-  {x:MW/2,      y:MH/2+240},
-  {x:MW/2-240,  y:MH/2},
-  {x:MW/2+240,  y:MH/2},
-];
-// Assign a deterministic spawn index based on socket id hash
-function mySpawnIdx(){
-  if(!socket||!socket.id)return 0;
-  let h=0;for(const c of socket.id){h=(h*31+c.charCodeAt(0))&0xffff;}
-  return h%ONLINE_SPAWNS.length;
-}
-function initGame(){
-  // All online players always spawn at exact center of map together
-  let sp = {x:MW/2, y:MH/2};
-  if (GAME_MODE==='online') {
-    // Try server spawnMap first (keyed by old socket id saved before redirect)
-    const anySpawn = Object.values(SPAWN_MAP)[0]; // all are same center point anyway
-    if (anySpawn) sp = anySpawn;
-  }
-  player={x:sp.x,y:sp.y,hp:120,maxHp:120,size:14,angle:0};
-  bullets=[];zombies=[];allies=[];particles=[];explosions=[];pickups=[];
-  round=1;kills=0;grenades=3;wepIdx=0;fireCharge=0;lastShot=0;bossCount=0;sprintToggle=false;
-  // In online mode preserve remotePlayers so we don't lose already-connected players
-  if(GAME_MODE!=='online') remotePlayers={};
-  const sb=document.getElementById('sprintBtn');if(sb){sb.style.color='#7fff7f';sb.style.borderColor='#3a7a3a';sb.style.boxShadow='none';}
-  bossActive=false;boss=null;roundTrans=false;
-  buildWP();spawnRound();spawnMapBandages();updateHUD();
-}
-function updateHUD(){
-  document.getElementById('hpf').style.width=(player.hp/player.maxHp*100)+'%';
-  document.getElementById('firefill').style.width=(fireCharge*100)+'%';
-  document.getElementById('kc').textContent=kills;
-  document.getElementById('zc').textContent=zombies.length+(bossActive&&boss?1:0);
-  document.getElementById('rd').textContent=bossActive?'-- BOSS '+getBossNum(round)+' --':'RONDA '+round;
-  document.getElementById('wn').textContent=WEAPONS[wepIdx].name;
-  document.getElementById('gc2').textContent=grenades;
-  if(GAME_MODE==='bots'){
-    document.getElementById('sol').textContent=allies.filter(a=>a.kind==='soldier').length;
-    document.getElementById('tan').textContent=allies.filter(a=>a.kind==='tank').length;
-  }
-  document.querySelectorAll('.wb').forEach((b,i)=>b.classList.toggle('active',i===wepIdx));
-}
-function buildWP(){
-  const p=document.getElementById('wp');p.innerHTML='';
-  WEAPONS.forEach((w,i)=>{
-    const b=document.createElement('div');
-    b.className='wb'+(i===0?' active':'');
-    b.textContent='['+w.k+'] '+w.name+' INF';
-    b.addEventListener('click',()=>{wepIdx=i;updateHUD();});
-    p.appendChild(b);
-  });
-}
-function spawnRound(){
-  const bn=getBossNum(round);const ad=800;
-  const isOnline = GAME_MODE === 'online';
-  // In online mode ONLY the host spawns zombies - clients get them via zombieSync
-  if(isOnline && !IS_HOST){
-    showMsg(isBossRound(round)?'-- BOSS #'+bn+' LLEGA --':'RONDA '+round,2000);
-    return;
-  }
-  // Progressive zombie count: starts small, grows smoothly
-  // R1=8, R2=15, R3=22, R4=30, R6=40, R7=50, R8=65, R9=80, R11=100, R12=120...
-  function zombieCount(r){
-    if(r<=1) return 8;
-    if(r<=2) return 15;
-    if(r<=3) return 22;
-    if(r<=4) return 30;
-    if(r<=6) return 40;
-    if(r<=7) return 50;
-    if(r<=8) return 65;
-    if(r<=9) return 80;
-    if(r<=11) return 100;
-    if(r<=13) return 120;
-    if(r<=15) return 150;
-    return Math.min(150 + (r-15)*15, 350);
-  }
-  // Delay between spawns: faster as rounds progress but not too fast
-  function spawnDelay(r){ return Math.max(300, 900 - r*50); }
+if '  <div id="ov">' in html:
+    html = html.replace('  <div id="ov">', mobile_html + '  <div id="ov">', 1)
+    changes += 1
+    print("  OK: HTML de controles moviles")
 
-  if(isBossRound(round)){
-    showMsg('-- BOSS #'+bn+' LLEGA --',3000);
-    // Small horde before boss, grows with boss number
-    const horde = Math.min(5 + bn*4, 25);
-    const delay = spawnDelay(round);
-    for(let i=0;i<horde;i++) setTimeout(()=>spawnZombie(), i*delay+Math.random()*200);
-    setTimeout(()=>spawnBoss(bn), 3000);
-    if(!isOnline){
-      for(let i=0;i<7;i++)setTimeout(()=>spawnAlly('soldier'),ad+i*200);
-      for(let i=0;i<6;i++)setTimeout(()=>spawnAlly('tank'),ad+i*300+400);
-      for(let i=0;i<4;i++)setTimeout(()=>spawnAlly('heli'),ad+i*350+600);
-    }
-  } else {
-    const count = zombieCount(round);
-    const delay = spawnDelay(round);
-    for(let i=0;i<count;i++) setTimeout(()=>spawnZombie(), i*delay+Math.random()*100);
-    showMsg('RONDA '+round+' -- '+count+' ZOMBIES!',2000);
-    if(!isOnline){
-      for(let i=0;i<5;i++)setTimeout(()=>spawnAlly('soldier'),ad+i*250);
-      for(let i=0;i<5;i++)setTimeout(()=>spawnAlly('tank'),ad+i*350+500);
-      for(let i=0;i<5;i++)setTimeout(()=>spawnAlly('heli'),ad+i*300+700);
-    }
-  }
-  if(socket&&IS_HOST) socket.emit('roundUpdate',{round});
-}
-function spawnZombie(){
-  if(gs_state!=='playing')return;
-  // Performance cap: never more than 120 zombies on screen
-  if(zombies.length>=120)return;
-  const sp=SP[Math.floor(Math.random()*SP.length)];
-  const pool=[];
-  // R1: only walkers and runners — easy intro
-  pool.push(0,0,0,0,1);
-  if(round>=2)pool.push(0,0,1,1);       // more runners
-  if(round>=3)pool.push(2,1,1);          // first brutes
-  if(round>=4)pool.push(2,2,3);          // spitters appear
-  if(round>=6)pool.push(3,3,4);          // elites
-  if(round>=7)pool.push(4,4,5);          // armored
-  if(round>=8)pool.push(5,6);            // mutants
-  if(round>=9)pool.push(6,7);            // shadows
-  if(round>=11)pool.push(7,8);           // titans
-  if(round>=13)pool.push(8,8,5,5);
-  const ti=pool[Math.floor(Math.random()*pool.length)];
-  const t=ZTYPES[ti];
-  const spdMult=Math.min(1+round*.04,2.4);
-  const hpBonus=t.hp>=150?round*18:round*10;
-  const hp=Math.floor(t.hp+hpBonus);
-  let col=t.col;
-  if(round>=6&&(ti===0||ti===1))col='#a05010';
-  if(round>=10&&(ti===0||ti===1||ti===2))col='#8B0000';
-  if(round>=15)col=ti<4?'#4a0000':'#6a0050';
-  zombies.push({
-    zid: ++zombieIdCounter,
-    x:clamp(sp.x+(Math.random()-.5)*120,30,MW-30),
-    y:clamp(sp.y+(Math.random()-.5)*120,30,MH-30),
-    hp,maxHp:hp,spd:t.spd*spdMult,dmg:t.dmg+Math.floor(round*.6),
-    sz:t.sz,col,angle:0,walk:Math.random()*6,
-    lastAtk:0,lastShot:0,ranged:!!t.ranged,smart:!!t.smart,
-    dodgeTimer:0,dodgeAngle:0,typeIdx:ti,
-  });
-}
-function spawnAlly(kind){
-  if(gs_state!=='playing')return;
-  const side=Math.floor(Math.random()*4);
-  let x,y;
-  if(side===0){x=Math.random()*MW;y=60;}
-  else if(side===1){x=Math.random()*MW;y=MH-60;}
-  else if(side===2){x=60;y=Math.random()*MH;}
-  else{x=MW-60;y=Math.random()*MH;}
-  const T={
-    soldier:{sz:13,hp:100,maxHp:100,spd:2.8,col:'#00bfff',rate:380,dmg:18,range:380},
-    tank:{sz:22,hp:400,maxHp:400,spd:1.4,col:'#7ec850',rate:1200,dmg:65,range:500,expl:true,blastR:65},
-    heli:{sz:16,hp:70,maxHp:70,spd:4.2,col:'#ffdb4d',rate:190,dmg:12,range:550},
-  };
-  const t=T[kind];
-  allies.push({x,y,kind,...t,angle:0,lastShot:0,walk:0});
-}
-function spawnBoss(bn=1){
-  if(gs_state!=='playing')return;
-  bossActive=true;
-  const hpScale=bn===1?3500:bn===2?6000:bn===3?10000:bn===4?16000:Math.floor(16000*Math.pow(1.7,bn-4));
-  const spdScale=Math.min(1.6+bn*.3,4.2);
-  const szScale=Math.min(42+bn*4,72);
-  boss={
-    x:MW/2,y:160,hp:hpScale+round*150,maxHp:hpScale+round*150,
-    spd:spdScale,sz:szScale,angle:0,lastShot:0,lastAtk:0,
-    shootCd:Math.max(400,900-bn*80),charging:false,chargeSpd:Math.min(spdScale+1.5,5),
-    bossNum:bn,
-    col1:bn===1?'#5a0000':bn===2?'#1a0040':bn===3?'#004010':bn===4?'#402000':'#3a003a',
-    col2:bn===1?'#b71c1c':bn===2?'#4a148c':bn===3?'#1b5e20':bn===4?'#e65100':'#6a1b9a',
-    col3:bn===1?'#ef5350':bn===2?'#9c27b0':bn===3?'#4caf50':bn===4?'#ff9800':'#ce93d8',
-    eyeCol:bn%2===0?'#00ffff':'#ff0',
-  };
-}
-function curRate(){const w=WEAPONS[wepIdx];return Math.round(w.baseRate-(w.baseRate-w.minRate)*fireCharge);}
-function fireWeapon(){
-  const now=Date.now();
-  if(now-lastShot<curRate())return;
-  lastShot=now;
-  const w=WEAPONS[wepIdx];
-  const wx=mouse.x+cam.x,wy=mouse.y+cam.y;
-  const base=Math.atan2(wy-player.y,wx-player.x);
-  for(let i=0;i<w.bcount;i++){
-    const a=base+(Math.random()-.5)*w.spread*2;
-    const bul={x:player.x,y:player.y,vx:Math.cos(a)*w.bspd,vy:Math.sin(a)*w.bspd,
-      dmg:w.dmg,life:95,col:w.color,expl:!!w.expl,blastR:w.blastR||0};
-    bullets.push(bul);
-    // Send to online players
-    if(socket) socket.emit('bulletFired',{x:bul.x,y:bul.y,vx:bul.vx,vy:bul.vy});
-  }
-  for(let i=0;i<4;i++)spawnPart(player.x,player.y,'#ff8',1,Math.random()*4+2);
-}
-function throwGrenade(){
-  if(grenades<=0)return;
-  grenades--;
-  const wx=mouse.x+cam.x,wy=mouse.y+cam.y;
-  const dx=wx-player.x,dy=wy-player.y,len=Math.sqrt(dx*dx+dy*dy)||1;
-  bullets.push({x:player.x,y:player.y,vx:dx/len*6,vy:dy/len*6,
-    dmg:115,life:46,col:'#ff0',expl:true,blastR:95,gren:true});
-  updateHUD();
-}
-function spawnPart(x,y,col,cnt=6,spd=2){
-  for(let i=0;i<cnt;i++){
-    const a=Math.random()*Math.PI*2;
-    particles.push({x,y,vx:Math.cos(a)*spd*(0.5+Math.random()),vy:Math.sin(a)*spd*(0.5+Math.random()),
-      col,life:20+Math.random()*14,r:1.5+Math.random()*3});
+mobile_js = """
+// ── Mobile / Touch controls ──────────────────────────────────────────────
+function updMWep(){
+  for(let i=0;i<4;i++){
+    const el=document.getElementById('mwb'+i);
+    if(el) el.classList.toggle('active',i===wepIdx);
   }
 }
-function spawnExpl(x,y,r){
-  explosions.push({x,y,r,life:28,maxLife:28});
-  spawnPart(x,y,'#f80',20,r/7);spawnPart(x,y,'#ff0',8,r/14);spawnPart(x,y,'#fff',5,r/20);
-}
-function explodeArea(ex,ey,r,skipPlayer=false){
-  spawnExpl(ex,ey,r);
-  for(let j=zombies.length-1;j>=0;j--){
-    const z=zombies[j];
-    if(dist2(ex,ey,z.x,z.y)<r*r){
-      z.hp-=95;spawnPart(z.x,z.y,'#f00',5);
-      if(z.hp<=0){maybeDrop(z.x,z.y);kills++;zombies.splice(j,1);checkEnd();}
-    }
-  }
-  if(bossActive&&boss&&dist2(ex,ey,boss.x,boss.y)<r*r)boss.hp-=95;
-  if(!skipPlayer&&dist2(ex,ey,player.x,player.y)<r*r)hurtP(16);
-}
-function maybeDrop(x,y){
-  const r=Math.random();
-  if(r<0.12)pickups.push({x,y,type:'bandage',life:500});
-  else if(r<0.20)pickups.push({x,y,type:'medkit',life:500});
-  else if(r<0.26)pickups.push({x,y,type:'grenade',life:400});
-}
-function spawnMapBandages(){
-  // In online mode only host spawns pickups (clients get them via sync)
-  if(GAME_MODE==='online'&&!IS_HOST) return;
-  const spots=[
-    {x:300,y:300},{x:MW-300,y:300},{x:300,y:MH-300},{x:MW-300,y:MH-300},
-    {x:MW/2,y:300},{x:MW/2,y:MH-300},{x:300,y:MH/2},{x:MW-300,y:MH/2},
-    {x:700,y:700},{x:MW-700,y:700},{x:700,y:MH-700},{x:MW-700,y:MH-700},
-    {x:MW/2-200,y:MH/2},{x:MW/2+200,y:MH/2},{x:MW/2,y:MH/2-200},{x:MW/2,y:MH/2+200},
-  ];
-  for(const s of spots){
-    if(Math.random()<0.6){
-      const type=Math.random()<0.65?'bandage':'medkit';
-      pickups.push({x:s.x+(Math.random()-.5)*120,y:s.y+(Math.random()-.5)*120,type,life:900});
-    }
-  }
-}
-function hurtP(d){
-  player.hp=Math.max(0,player.hp-d);updateHUD();
-  if(player.hp<=0){
-    if(socket) socket.emit('playerDied');
-    setTimeout(()=>endGame(false),300);
-  }
-}
-function checkEnd(){
-  // In online mode only the host decides when a round ends
-  if(GAME_MODE==='online'&&!IS_HOST) return;
-  if(zombies.length===0&&!bossActive&&!roundTrans){
-    roundTrans=true;round++;
-    const nextIsBoss=isBossRound(round);
-    // Small heal between rounds
-    player.hp=Math.min(player.maxHp,player.hp+15);
-    setTimeout(()=>{roundTrans=false;updateHUD();spawnRound();spawnMapBandages();},2200);
-    showMsg(nextIsBoss?'-- BOSS #'+getBossNum(round)+' EN CAMINO --':'RONDA '+round+' LISTA  +15 HP',1800);
-  }
-}
-function updateAllies(){
-  const now=Date.now();
-  for(let i=allies.length-1;i>=0;i--){
-    const a=allies[i];
-    if(a.hp<=0){spawnPart(a.x,a.y,a.col,10,3);allies.splice(i,1);updateHUD();continue;}
-    let target=null,minD=a.range*a.range*1.6;
-    const en=[...zombies];if(bossActive&&boss)en.push(boss);
-    for(const e of en){const d=dist2(a.x,a.y,e.x,e.y);if(d<minD){minD=d;target=e;}}
-    if(target){
-      const dx=target.x-a.x,dy=target.y-a.y,len=Math.sqrt(dx*dx+dy*dy)||1;
-      a.angle=Math.atan2(dy,dx);
-      const kd=a.kind==='tank'?200:a.kind==='heli'?260:140;
-      if(len>kd){a.x+=dx/len*a.spd;a.y+=dy/len*a.spd;}
-      if(now-a.lastShot>a.rate&&len<a.range){
-        a.lastShot=now;
-        const ba=a.angle+(Math.random()-.5)*0.12;
-        bullets.push({x:a.x,y:a.y,vx:Math.cos(ba)*8,vy:Math.sin(ba)*8,
-          dmg:a.dmg,life:85,col:a.col,ally:true,expl:!!a.expl,blastR:a.blastR||0});
-      }
-    } else {
-      const dx=player.x-a.x,dy=player.y-a.y,len=Math.sqrt(dx*dx+dy*dy)||1;
-      if(len>200){a.x+=dx/len*a.spd*.5;a.y+=dy/len*a.spd*.5;}
-    }
-    a.x=clamp(a.x,25,MW-25);a.y=clamp(a.y,25,MH-25);a.walk+=0.1;
-  }
-}
-// ── Boss abilities (all original) ─────────────────────────────────────────
-function bossAbilitySpread(b){
-  const targets=[{x:player.x,y:player.y},...allies.slice(0,2)];
-  const t=targets[Math.floor(Math.random()*targets.length)];
-  const base=Math.atan2(t.y-b.y,t.x-b.x);
-  const shots=Math.min(3+b.bossNum,9);
-  for(let i=0;i<shots;i++){
-    const a=base+((i-(shots-1)/2)*.3);
-    bullets.push({x:b.x,y:b.y,vx:Math.cos(a)*6,vy:Math.sin(a)*6,
-      dmg:18+b.bossNum*4,life:140,col:b.col2,fboss:true,expl:true,blastR:48+b.bossNum*4});
-  }
-}
-function bossAbilitySpiral(b){
-  const count=12+b.bossNum*2,offset=Date.now()*.002;
-  for(let i=0;i<count;i++){
-    const a=(Math.PI*2/count)*i+offset,spd=4+b.bossNum*.5;
-    bullets.push({x:b.x,y:b.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,dmg:14+b.bossNum*3,life:160,col:'#f0f',fboss:true,expl:false});
-  }
-  showMsg('ESPIRAL!',700);
-}
-function bossAbilityRing(b){
-  const count=16+b.bossNum*2;
-  for(let i=0;i<count;i++){
-    const a=(Math.PI*2/count)*i;
-    bullets.push({x:b.x,y:b.y,vx:Math.cos(a)*7,vy:Math.sin(a)*7,dmg:22+b.bossNum*3,life:55,col:'#ff0',fboss:true,expl:true,blastR:40});
-  }
-  spawnPart(b.x,b.y,'#ff0',30,8);showMsg('ONDA DE CHOQUE!',700);
-}
-function bossAbilitySummon(b){
-  const count=3+Math.floor(b.bossNum/2);
-  for(let i=0;i<count;i++){
-    setTimeout(()=>{
-      if(!boss||gs_state!=='playing')return;
-      const targets=[{x:player.x,y:player.y},...allies];
-      const t=targets[Math.floor(Math.random()*targets.length)];
-      const angle=Math.random()*Math.PI*2,r=60+Math.random()*40;
-      const sx=clamp(t.x+Math.cos(angle)*r,30,MW-30),sy=clamp(t.y+Math.sin(angle)*r,30,MH-30);
-      const tp=ZTYPES[Math.min(4+Math.floor(b.bossNum/2),8)];
-      zombies.push({x:sx,y:sy,hp:tp.hp+round*10,maxHp:tp.hp+round*10,
-        spd:tp.spd*1.5,dmg:tp.dmg+b.bossNum*2,sz:tp.sz,col:'#880088',
-        angle:0,walk:0,lastAtk:0,lastShot:0,ranged:!!tp.ranged,smart:true,dodgeTimer:0,dodgeAngle:0,typeIdx:4});
-      spawnPart(sx,sy,'#f0f',10,4);
-    },i*300);
-  }
-  showMsg('INVOCACION!',900);
-}
-function bossAbilityDash(b){b.dashing=true;b.dashTarget={x:player.x,y:player.y};b.dashTimer=40;spawnPart(b.x,b.y,b.col3,20,6);showMsg('EMBESTIDA!',700);}
-function bossAbilityLaser(b){
-  const base=b.angle;
-  for(let i=0;i<18;i++){
-    setTimeout(()=>{
-      if(!boss||gs_state!=='playing')return;
-      const a=base+(Math.random()-.5)*.07;
-      bullets.push({x:boss.x,y:boss.y,vx:Math.cos(a)*12,vy:Math.sin(a)*12,dmg:10+boss.bossNum*2,life:65,col:'#0ff',fboss:true,expl:false});
-    },i*45);
-  }
-  showMsg('LASER!',700);
-}
-function bossAbilityMines(b){
-  const count=3+b.bossNum;
-  for(let i=0;i<count;i++){
-    const angle=Math.random()*Math.PI*2,dist=80+Math.random()*200;
-    const mx=clamp(player.x+Math.cos(angle)*dist,30,MW-30),my=clamp(player.y+Math.sin(angle)*dist,30,MH-30);
-    pickups.push({x:mx,y:my,type:'mine',life:600,dmg:60+b.bossNum*15,blastR:70+b.bossNum*8});
-  }
-  showMsg('MINAS!',900);
-}
-function bossAbilityTeleport(b){
-  spawnPart(b.x,b.y,b.col2,25,8);
-  const angle=player.angle+Math.PI+(Math.random()-.5)*.5;
-  b.x=clamp(player.x+Math.cos(angle)*55,55,MW-55);
-  b.y=clamp(player.y+Math.sin(angle)*55,55,MH-55);
-  spawnPart(b.x,b.y,b.col3,25,8);
-  setTimeout(()=>{
-    if(!boss||gs_state!=='playing')return;
-    const d2=dist2(boss.x,boss.y,player.x,player.y);
-    if(d2<(boss.sz+player.size+30)*(boss.sz+player.size+30))hurtP(30+boss.bossNum*6);
-    bossAbilityRing(boss);
-  },80);
-  showMsg('TELETRANSPORTE!',900);
-}
-function bossAbilityCrossfire(b){
-  const offset=Date.now()*.001;
-  for(let arm=0;arm<4;arm++){
-    for(let j=0;j<5;j++){
-      const a=(Math.PI/2)*arm+offset+j*.08,spd=5+j*.5;
-      setTimeout(()=>{
-        if(!boss||gs_state!=='playing')return;
-        bullets.push({x:boss.x,y:boss.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,dmg:16+boss.bossNum*3,life:120,col:'#f60',fboss:true,expl:false});
-      },j*80);
-    }
-  }
-  showMsg('FUEGO CRUZADO!',800);
-}
-function bossAbilityFrenzy(b){
-  for(let i=0;i<30;i++){
-    setTimeout(()=>{
-      if(!boss||gs_state!=='playing')return;
-      const a=Math.random()*Math.PI*2;
-      bullets.push({x:boss.x,y:boss.y,vx:Math.cos(a)*8,vy:Math.sin(a)*8,dmg:14+boss.bossNum*2,life:100,col:boss.col3,fboss:true,expl:false});
-    },i*65);
-  }
-  showMsg('FRENESI!',1200);
-}
-function getBossAbilities(bn){
-  const pool=['spread','spread'];
-  if(bn>=1)pool.push('spiral','laser');
-  if(bn>=2)pool.push('ring','summon','mines');
-  if(bn>=3)pool.push('dash','crossfire','teleport');
-  if(bn>=4)pool.push('spiral','ring','frenzy');
-  if(bn>=5)pool.push('summon','laser','dash','mines','teleport');
-  if(bn>=6)pool.push('crossfire','frenzy','teleport','spiral');
-  return pool;
-}
-function updateBoss(){
-  if(!boss)return;
-  const now=Date.now();
-  const dx=player.x-boss.x,dy=player.y-boss.y,len=Math.sqrt(dx*dx+dy*dy)||1;
-  boss.angle=Math.atan2(dy,dx);
-  if(boss.hp<boss.maxHp*.33&&!boss.charging){
-    boss.charging=true;boss.shootCd=Math.max(180,boss.shootCd-250);
-    showMsg('-- BOSS '+boss.bossNum+' ENFURECIDO --',1800);
-    spawnPart(boss.x,boss.y,boss.col3,40,10);
-  }
-  if(boss.dashing&&boss.dashTimer>0){
-    boss.dashTimer--;
-    const ddx=boss.dashTarget.x-boss.x,ddy=boss.dashTarget.y-boss.y,dl=Math.sqrt(ddx*ddx+ddy*ddy)||1;
-    boss.x+=ddx/dl*(boss.chargeSpd*3);boss.y+=ddy/dl*(boss.chargeSpd*3);
-    if(boss.dashTimer%4===0)spawnPart(boss.x,boss.y,boss.col2,8,3);
-    if(boss.dashTimer===0)boss.dashing=false;
-  } else {
-    const spd=boss.charging?boss.chargeSpd:boss.spd;
-    boss.x+=dx/len*spd;boss.y+=dy/len*spd;
-  }
-  boss.x=clamp(boss.x,55,MW-55);boss.y=clamp(boss.y,55,MH-55);
-  if(!boss.nextAbility)boss.nextAbility='spread';
-  if(!boss.abilityQueue)boss.abilityQueue=[];
-  if(now-boss.lastShot>boss.shootCd){
-    boss.lastShot=now;
-    const pool=getBossAbilities(boss.bossNum);
-    let next;
-    do{next=pool[Math.floor(Math.random()*pool.length)];}while(next===boss.lastAbility&&pool.length>1);
-    boss.lastAbility=next;
-    switch(next){
-      case 'spread':bossAbilitySpread(boss);break;case 'spiral':bossAbilitySpiral(boss);break;
-      case 'ring':bossAbilityRing(boss);break;case 'summon':bossAbilitySummon(boss);break;
-      case 'dash':bossAbilityDash(boss);break;case 'laser':bossAbilityLaser(boss);break;
-      case 'mines':bossAbilityMines(boss);break;case 'teleport':bossAbilityTeleport(boss);break;
-      case 'crossfire':bossAbilityCrossfire(boss);break;case 'frenzy':bossAbilityFrenzy(boss);break;
-    }
-    if(boss.charging&&next!=='spread')setTimeout(()=>{if(boss)bossAbilitySpread(boss);},350);
-  }
-  if(dist2(boss.x,boss.y,player.x,player.y)<(boss.sz+player.size)*(boss.sz+player.size)){
-    if(now-boss.lastAtk>700){boss.lastAtk=now;hurtP(25+boss.bossNum*5);spawnPart(player.x,player.y,'#f00',8,4);}
-  }
-  for(let j=allies.length-1;j>=0;j--){
-    const a=allies[j];
-    if(dist2(boss.x,boss.y,a.x,a.y)<(boss.sz+a.sz+15)*(boss.sz+a.sz+15)){
-      if(now-boss.lastAtk>700)a.hp-=28+boss.bossNum*6;
-    }
-  }
-  if(boss.hp<=0){
-    spawnExpl(boss.x,boss.y,140+boss.bossNum*20);
-    spawnExpl(boss.x+40,boss.y-30,80+boss.bossNum*10);
-    spawnExpl(boss.x-40,boss.y+30,80+boss.bossNum*10);
-    spawnPart(boss.x,boss.y,'#f00',80,14);
-    spawnPart(boss.x,boss.y,boss.col3,60,10);
-    const bn=boss.bossNum,bx=boss.x,by=boss.y;
-    boss=null;bossActive=false;bossCount++;
-    player.hp=Math.min(player.maxHp,player.hp+40);
-    grenades=Math.min(grenades+3,15);
-    const dropCount=4+bn;
-    for(let i=0;i<dropCount;i++){
-      const a=(Math.PI*2/dropCount)*i,r=60+Math.random()*60;
-      pickups.push({x:clamp(bx+Math.cos(a)*r,30,MW-30),y:clamp(by+Math.sin(a)*r,30,MH-30),type:i%3===0?'medkit':'bandage',life:700});
-    }
-    round++;
-    setTimeout(()=>{updateHUD();checkEnd();},500);
-    showMsg('BOSS #'+bn+' DERROTADO! +40HP +3 GRANADAS',3000);
-  }
-}
+(function(){
+  const jZone=document.getElementById('joystickZone');
+  const jThumb=document.getElementById('joystickThumb');
+  const fireBtn=document.getElementById('mFireBtn');
+  const grenBtn=document.getElementById('mGrenBtn');
+  const spBtn=document.getElementById('mSprintBtn');
+  if(!jZone) return;
 
-// ── MAIN UPDATE ───────────────────────────────────────────────────────────
-function update(ts){
-  if(gs_state!=='playing')return;
-  const dt=Math.min(ts-lastTime,50);lastTime=ts;
-  cam.x=clamp(player.x-W/2,0,MW-W);cam.y=clamp(player.y-H/2,0,MH-H);
-  if(mouseDown){fireCharge=Math.min(1,fireCharge+0.007);fireWeapon();}
-  else fireCharge=Math.max(0,fireCharge-0.024);
-  const PS=3.3;
-  const sprinting=keys['ShiftLeft']||keys['ShiftRight']||sprintToggle;
-  const speed=sprinting?PS*2.8:PS;
-  let vx=0,vy=0;
-  if(keys['KeyW']||keys['ArrowUp'])vy-=speed;
-  if(keys['KeyS']||keys['ArrowDown'])vy+=speed;
-  if(keys['KeyA']||keys['ArrowLeft'])vx-=speed;
-  if(keys['KeyD']||keys['ArrowRight'])vx+=speed;
-  if(vx&&vy){vx*=0.707;vy*=0.707;}
-  player.angle=Math.atan2((mouse.y+cam.y)-player.y,(mouse.x+cam.x)-player.x);
-  if(sprinting&&(vx||vy)&&Math.random()<0.5)spawnPart(player.x,player.y,'#0f8',2,2);
-  let nx=clamp(player.x+vx,18,MW-18),ny=clamp(player.y+vy,18,MH-18);
-  if(anyHouseBlocks(nx,ny,player.size)){
-    if(!anyHouseBlocks(nx,player.y,player.size))ny=player.y;
-    else if(!anyHouseBlocks(player.x,ny,player.size))nx=player.x;
-    else{nx=player.x;ny=player.y;}
+  const JR=58;
+  let jId=null,jOx=0,jOy=0;
+
+  function setJoy(nx,ny){
+    const dx=nx-jOx,dy=ny-jOy;
+    const d=Math.sqrt(dx*dx+dy*dy);
+    const cx=d>JR?dx/d*JR:dx;
+    const cy=d>JR?dy/d*JR:dy;
+    jThumb.style.left=(50+cx/JR*50)+'%';
+    jThumb.style.top=(50+cy/JR*50)+'%';
+    const thr=0.28;
+    keys['KeyW']=cy/JR<-thr;
+    keys['KeyS']=cy/JR>thr;
+    keys['KeyA']=cx/JR<-thr;
+    keys['KeyD']=cx/JR>thr;
   }
-  player.x=nx;player.y=ny;
-  const now=Date.now();
-  for(let i=bullets.length-1;i>=0;i--){
-    const b=bullets[i];
-    b.x+=b.vx;b.y+=b.vy;b.life--;
-    if(b.life<=0||b.x<0||b.x>MW||b.y<0||b.y>MH){
-      if(b.expl&&!b.remote)spawnExpl(b.x,b.y,b.blastR);
-      bullets.splice(i,1);continue;
-    }
-    if(!b.ally&&!b.fboss&&!b.fzom&&!b.remote){
-      if(anyHouseBlocks(b.x,b.y,3)){
-        if(b.expl)explodeArea(b.x,b.y,b.blastR,false);
-        else spawnPart(b.x,b.y,'#888',3);
-        bullets.splice(i,1);continue;
-      }
-    }
-    if(b.fboss){
-      if(anyHouseBlocks(b.x,b.y,4)){
-        if(b.expl)explodeArea(b.x,b.y,b.blastR,true);
-        else spawnPart(b.x,b.y,b.col,4);
-        bullets.splice(i,1);continue;
-      }
-    }
-    if(!b.fboss&&!b.fzom&&!b.remote){
-      let hit=false;
-      for(let j=zombies.length-1;j>=0;j--){
-        const z=zombies[j];
-        const thr=b.expl?b.blastR:(z.sz+4);
-        if(dist2(b.x,b.y,z.x,z.y)<thr*thr){
-          if(b.expl){explodeArea(b.x,b.y,b.blastR,false);bullets.splice(i,1);hit=true;break;}
-          // In online non-host mode: report hit to host instead of applying locally
-          if(GAME_MODE==='online'&&!IS_HOST){
-            socket.emit('clientZombieHit',{zid:z.zid,zombieIdx:j,dmg:b.dmg,x:z.x,y:z.y});
-            spawnPart(z.x,z.y,'#f00',2);
-          } else {
-            z.hp-=b.dmg;spawnPart(z.x,z.y,'#f00',2);
-            if(z.hp<=0){maybeDrop(z.x,z.y);kills++;zombies.splice(j,1);checkEnd();}
-          }
-          bullets.splice(i,1);hit=true;break;
-        }
-      }
-      if(hit||i>=bullets.length)continue;
-      if(!b.ally&&bossActive&&boss){
-        const thr=b.expl?b.blastR:(boss.sz+4);
-        if(dist2(b.x,b.y,boss.x,boss.y)<thr*thr){
-          if(b.expl)explodeArea(b.x,b.y,b.blastR,false);
-          else boss.hp-=b.dmg;
-          bullets.splice(i,1);continue;
-        }
-      }
-    }
-    if(i>=bullets.length)continue;
-    if(b.fboss){
-      const thr=b.expl?b.blastR:(player.size+5);
-      if(dist2(b.x,b.y,player.x,player.y)<thr*thr){
-        if(b.expl){spawnExpl(b.x,b.y,b.blastR);hurtP(b.dmg);}else hurtP(b.dmg);
-        bullets.splice(i,1);continue;
-      }
-    }
-    if(b.fzom){
-      if(dist2(b.x,b.y,player.x,player.y)<(player.size+4)*(player.size+4)){
-        hurtP(b.dmg);bullets.splice(i,1);continue;
+
+  jZone.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const t=e.changedTouches[0];
+    jId=t.identifier;
+    const r=jZone.getBoundingClientRect();
+    jOx=r.left+r.width/2; jOy=r.top+r.height/2;
+    setJoy(t.clientX,t.clientY);
+  },{passive:false});
+
+  jZone.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches) if(t.identifier===jId){setJoy(t.clientX,t.clientY);break;}
+  },{passive:false});
+
+  function jEnd(e){
+    e.preventDefault();
+    for(const t of e.changedTouches){
+      if(t.identifier===jId){
+        jId=null;
+        keys['KeyW']=keys['KeyS']=keys['KeyA']=keys['KeyD']=false;
+        jThumb.style.left='50%'; jThumb.style.top='50%';
+        break;
       }
     }
   }
-  for(let i=zombies.length-1;i>=0;i--){
-    const z=zombies[i];z.walk+=0.12;
+  jZone.addEventListener('touchend',jEnd,{passive:false});
+  jZone.addEventListener('touchcancel',jEnd,{passive:false});
 
-    // In online mode, only HOST simulates zombies
-    if(GAME_MODE==='online'&&!IS_HOST) continue;
+  // Auto-aim: apunta al zombie mas cercano visible en pantalla
+  setInterval(()=>{
+    if(!player||gs_state!=='playing') return;
+    let best=null,bestD=Infinity;
+    const targets=[...zombies];
+    if(bossActive&&boss) targets.push(boss);
+    for(const z of targets){
+      const sx=z.x-cam.x, sy=z.y-cam.y;
+      if(sx<-60||sx>W+60||sy<-60||sy>H+60) continue;
+      const d=(z.x-player.x)**2+(z.y-player.y)**2;
+      if(d<bestD){bestD=d;best={sx,sy};}
+    }
+    if(best){mouse.x=best.sx;mouse.y=best.sy;}
+  },50);
 
-    // Performance: far non-smart zombies get simplified AI (drift only)
-    const _dtp=dist2(z.x,z.y,player.x,player.y);
-    if(_dtp>1400*1400&&!z.ranged&&!z.smart){
-      const _ang=Math.atan2(player.y-z.y,player.x-z.x);
-      z.x+=Math.cos(_ang)*z.spd*0.4;z.y+=Math.sin(_ang)*z.spd*0.4;
-      z.angle=_ang;
-      continue;
-    }
+  // Boton fuego - mantener presionado para disparar
+  fireBtn.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    mouseDown=true;
+    fireBtn.classList.add('firing');
+  },{passive:false});
+  fireBtn.addEventListener('touchend',e=>{
+    e.preventDefault();
+    mouseDown=false;
+    fireBtn.classList.remove('firing');
+  },{passive:false});
+  fireBtn.addEventListener('touchcancel',e=>{
+    e.preventDefault();
+    mouseDown=false;
+    fireBtn.classList.remove('firing');
+  },{passive:false});
 
-    // Find nearest target: local player, remote players, allies
-    let tx=player.x,ty=player.y,tIsAlly=false,tAllyIdx=-1;
-    let minD=_dtp;
+  // Boton granada
+  grenBtn.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    if(gs_state==='playing') throwGrenade();
+  },{passive:false});
 
-    // Target remote players too (online mode)
-    if(GAME_MODE==='online') {
-      for(const [rid, rp] of Object.entries(remotePlayers)) {
-        if(rp.alive===false||rp.x==null||rp.y==null) continue;
-        const d=dist2(z.x,z.y,rp.x,rp.y);
-        if(d<minD){minD=d;tx=rp.x;ty=rp.y;}
-      }
-    }
-
-    for(let j=0;j<allies.length;j++){
-      const a=allies[j];const d=dist2(z.x,z.y,a.x,a.y);
-      if(d<minD){minD=d;tx=a.x;ty=a.y;tIsAlly=true;tAllyIdx=j;}
-    }
-    const rawDx=tx-z.x,rawDy=ty-z.y,rawLen=Math.sqrt(rawDx*rawDx+rawDy*rawDy)||1;
-    let ndx=rawDx/rawLen,ndy=rawDy/rawLen;
-    z.angle=Math.atan2(rawDy,rawDx);
-    if(z.smart){
-      z.dodgeTimer--;
-      if(z.dodgeTimer<=0){z.dodgeAngle=(Math.random()-.5)*0.9;z.dodgeTimer=70+Math.floor(Math.random()*50);}
-      const perpX=-ndy,perpY=ndx;
-      ndx=ndx*0.8+perpX*Math.sin(z.dodgeAngle)*0.2;ndy=ndy*0.8+perpY*Math.sin(z.dodgeAngle)*0.2;
-      const fl=Math.sqrt(ndx*ndx+ndy*ndy)||1;ndx/=fl;ndy/=fl;
-    }
-    const moveDist=z.spd;let znx=z.x,zny=z.y;
-    if(rawLen>z.sz+2){znx=z.x+ndx*moveDist;zny=z.y+ndy*moveDist;}
-    if(anyHouseBlocks(znx,zny,z.sz)){
-      const onlyX=z.x+ndx*moveDist,onlyY=z.y+ndy*moveDist;
-      if(!anyHouseBlocks(onlyX,z.y,z.sz)){znx=onlyX;zny=z.y;}
-      else if(!anyHouseBlocks(z.x,onlyY,z.sz)){znx=z.x;zny=onlyY;}
-      else{znx=z.x;zny=z.y;}
-    }
-    z.x=clamp(znx,15,MW-15);z.y=clamp(zny,15,MH-15);
-    if(!tIsAlly){
-      if(dist2(z.x,z.y,player.x,player.y)<(z.sz+player.size)*(z.sz+player.size)){
-        if(now-z.lastAtk>900){z.lastAtk=now;hurtP(z.dmg);}
-      }
-      // HOST: also damage remote players that zombies touch
-      if(GAME_MODE==='online'&&IS_HOST){
-        for(const [rid,rp] of Object.entries(remotePlayers)){
-          if(rp.x==null||rp.y==null||rp.alive===false)continue;
-          if(dist2(z.x,z.y,rp.x,rp.y)<(z.sz+14)*(z.sz+14)){
-            if(now-z.lastAtk>900){z.lastAtk=now;
-              socket.emit('damagePlayer',{targetId:rid,dmg:z.dmg});
-              socket.to&&socket.to(SERVER_ID).emit('damagePlayer',{targetId:rid,dmg:z.dmg});
-            }
-          }
-        }
-      }
-    } else {
-      const ta=allies[tAllyIdx];
-      if(ta&&dist2(z.x,z.y,ta.x,ta.y)<(z.sz+ta.sz)*(z.sz+ta.sz)){
-        if(now-z.lastAtk>900){z.lastAtk=now;ta.hp-=z.dmg;}
-      }
-    }
-    if(z.ranged&&dist2(z.x,z.y,player.x,player.y)<320*320){
-      if(now-z.lastShot>1600){
-        z.lastShot=now;
-        const a=Math.atan2(player.y-z.y,player.x-z.x);
-        bullets.push({x:z.x,y:z.y,vx:Math.cos(a)*4.5,vy:Math.sin(a)*4.5,dmg:z.dmg,life:90,col:z.col,fzom:true});
-      }
-    }
-  }
-  if(bossActive&&boss)updateBoss();
-  updateAllies();
-  for(let i=pickups.length-1;i>=0;i--){
-    const p=pickups[i];p.life--;
-    if(p.life<=0){pickups.splice(i,1);continue;}
-    if(p.type==='mine'){
-      if(dist2(p.x,p.y,player.x,player.y)<(player.size+p.blastR*.4)*(player.size+p.blastR*.4)){
-        explodeArea(p.x,p.y,p.blastR,false);hurtP(p.dmg);pickups.splice(i,1);continue;
-      }
-      continue;
-    }
-    if(dist2(p.x,p.y,player.x,player.y)<(player.size+16)*(player.size+16)){
-      if(p.type==='bandage'){player.hp=Math.min(player.maxHp,player.hp+25);showMsg('+25 HP VENDA',700);}
-      else if(p.type==='medkit'||p.type==='health'){player.hp=Math.min(player.maxHp,player.hp+50);showMsg('+50 HP BOTIQUIN',900);}
-      else if(p.type==='grenade'){grenades=Math.min(grenades+2,15);showMsg('+2 GRANADAS',700);}
-      pickups.splice(i,1);updateHUD();
-    }
-  }
-  for(let i=particles.length-1;i>=0;i--){
-    const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=0.88;p.vy*=0.88;p.life--;
-    if(p.life<=0)particles.splice(i,1);
-  }
-  for(let i=explosions.length-1;i>=0;i--){
-    explosions[i].life--;if(explosions[i].life<=0)explosions.splice(i,1);
-  }
-  emitState();
-  updateHUD();draw();
-  requestAnimationFrame(update);
-}
-
-// ── DRAW ──────────────────────────────────────────────────────────────────
-function draw(){
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#060f06';ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle='rgba(0,55,0,.14)';ctx.lineWidth=1;
-  const gsize=55,ox=cam.x%gsize,oy=cam.y%gsize;
-  for(let x=-ox;x<W;x+=gsize){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-  for(let y=-oy;y<H;y+=gsize){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-  ctx.save();ctx.translate(-cam.x,-cam.y);
-  ctx.save();ctx.strokeStyle='rgba(35,70,35,.18)';ctx.lineWidth=44;ctx.setLineDash([80,55]);
-  ctx.beginPath();ctx.moveTo(0,MH/2);ctx.lineTo(MW,MH/2);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(MW/2,0);ctx.lineTo(MW/2,MH);ctx.stroke();
-  ctx.setLineDash([]);ctx.restore();
-  for(const h of HOUSES)drawHouse(h);
-
-  // Draw remote players
-  for(const[id,rp] of Object.entries(remotePlayers)){
-    if(rp.x==null||rp.y==null)continue;
-    const dead=rp.alive===false;
-    ctx.save();ctx.translate(rp.x,rp.y);
-    // Glow
-    ctx.shadowBlur=dead?4:22;ctx.shadowColor=dead?'#555':'#00eeff';
-    // Outer body
-    ctx.fillStyle=dead?'#333':'#0d47a1';
-    ctx.beginPath();ctx.arc(0,0,14,0,Math.PI*2);ctx.fill();
-    // Inner body
-    ctx.fillStyle=dead?'#555':'#29b6f6';
-    ctx.beginPath();ctx.arc(0,0,9,0,Math.PI*2);ctx.fill();
-    // Highlight
-    ctx.fillStyle=dead?'#444':'rgba(180,240,255,0.25)';
-    ctx.beginPath();ctx.arc(-4,-4,5,0,Math.PI*2);ctx.fill();
-    // Gun barrel direction
-    if(rp.angle!=null&&!dead){
-      ctx.save();ctx.rotate(rp.angle);
-      ctx.fillStyle='#90caf9';ctx.shadowBlur=6;ctx.shadowColor='#29b6f6';
-      ctx.fillRect(9,-2.5,14,5);
-      ctx.restore();
-    }
-    // Name tag
-    ctx.fillStyle=dead?'#888':'#ffff00';
-    ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.textBaseline='alphabetic';
-    ctx.fillText(rp.name||'?',0,-20);
-    // HP bar
-    if(!dead&&rp.hp>0&&rp.maxHp>0){
-      const bw=32,bh=4,pct=rp.hp/rp.maxHp;
-      ctx.fillStyle='#300';ctx.fillRect(-bw/2,17,bw,bh);
-      ctx.fillStyle=pct>0.5?'#0f0':pct>0.25?'#ff0':'#f00';
-      ctx.fillRect(-bw/2,17,bw*pct,bh);
-    }
-    ctx.restore();
-  }
-
-  for(const p of pickups){
-    const pulse=0.85+0.15*Math.sin(Date.now()*.012);
-    ctx.save();ctx.globalAlpha=p.life>80?1:p.life/80;
-    ctx.shadowBlur=12;
-    if(p.type==='mine'){
-      const mp=0.7+0.3*Math.abs(Math.sin(Date.now()*.008));
-      ctx.globalAlpha=0.92;ctx.shadowBlur=12+mp*8;ctx.shadowColor='#f00';
-      ctx.fillStyle='#222';ctx.beginPath();ctx.arc(p.x,p.y,9,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#f00';ctx.beginPath();ctx.arc(p.x,p.y,5*mp,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle=`rgba(255,0,0,${.35*mp})`;ctx.lineWidth=1.5;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.blastR*.45,0,Math.PI*2);ctx.stroke();
-      ctx.fillStyle='#f44';ctx.font='bold 8px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText('!',p.x,p.y);
-    } else if(p.type==='bandage'){
-      ctx.shadowColor='#f44';
-      ctx.fillStyle='#fff';ctx.fillRect(p.x-10,p.y-3,20,6);ctx.fillRect(p.x-3,p.y-10,6,20);
-      ctx.strokeStyle='#f44';ctx.lineWidth=1.5;
-      ctx.strokeRect(p.x-10,p.y-3,20,6);ctx.strokeRect(p.x-3,p.y-10,6,20);
-      ctx.fillStyle='rgba(255,50,50,.2)';ctx.beginPath();ctx.arc(p.x,p.y,14*pulse,0,Math.PI*2);ctx.fill();
-    } else if(p.type==='medkit'||p.type==='health'){
-      ctx.shadowColor='#0f0';
-      ctx.fillStyle='#1a7a1a';ctx.fillRect(p.x-12,p.y-10,24,20);
-      ctx.strokeStyle='#0f0';ctx.lineWidth=1.5;ctx.strokeRect(p.x-12,p.y-10,24,20);
-      ctx.fillStyle='#f44';ctx.fillRect(p.x-8,p.y-3,16,6);ctx.fillRect(p.x-3,p.y-8,6,16);
-      ctx.fillStyle='rgba(0,255,0,.15)';ctx.beginPath();ctx.arc(p.x,p.y,16*pulse,0,Math.PI*2);ctx.fill();
-    } else {
-      ctx.shadowColor='#f80';
-      ctx.fillStyle='#444';ctx.beginPath();ctx.ellipse(p.x,p.y,10,7,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#f80';ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='rgba(255,128,0,.2)';ctx.beginPath();ctx.arc(p.x,p.y,13*pulse,0,Math.PI*2);ctx.fill();
-    }
-    ctx.restore();
-  }
-  for(const e of explosions){
-    const t=e.life/e.maxLife,r2=e.r*(1-t*.4);
-    const g=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,r2);
-    g.addColorStop(0,`rgba(255,255,170,${t})`);g.addColorStop(.35,`rgba(255,120,0,${t*.8})`);g.addColorStop(1,`rgba(180,10,0,0)`);
-    ctx.beginPath();ctx.arc(e.x,e.y,r2,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
-  }
-  for(const p of particles){
-    ctx.globalAlpha=p.life/32;ctx.fillStyle=p.col;
-    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
-  }
-  ctx.globalAlpha=1;
-  for(const a of allies)drawAlly(a);
-  for(const z of zombies){
-    // Skip zombies outside visible area (+ 80px margin)
-    if(z.x<cam.x-80||z.x>cam.x+W+80||z.y<cam.y-80||z.y>cam.y+H+80)continue;
-    drawZombie(z);
-  }
-  if(bossActive&&boss)drawBoss();
-  for(const b of bullets){
-    ctx.save();ctx.shadowBlur=5;ctx.shadowColor=b.col;ctx.fillStyle=b.col;
-    ctx.beginPath();
-    if(b.gren)ctx.arc(b.x,b.y,5,0,Math.PI*2);
-    else if(b.fboss)ctx.arc(b.x,b.y,6,0,Math.PI*2);
-    else if(b.fzom)ctx.arc(b.x,b.y,4,0,Math.PI*2);
-    else ctx.arc(b.x,b.y,3,0,Math.PI*2);
-    ctx.fill();ctx.restore();
-  }
-  drawPlayer();
-  ctx.restore();
-  if(fireCharge>0.4){
-    ctx.save();ctx.globalAlpha=fireCharge*.28;
-    ctx.strokeStyle='#f80';ctx.lineWidth=5;
-    ctx.strokeRect(2,2,W-4,H-4);ctx.restore();
-  }
-  // ── Minimap ──────────────────────────────────────────────────────────────
-  {
-    const MM=120,MX=W-MM-8,MY=H-MM-8,SCALE=MM/Math.max(MW,MH);
-    ctx.save();
-    ctx.globalAlpha=0.72;
-    ctx.fillStyle='#040d04';ctx.strokeStyle='#1a4a1a';ctx.lineWidth=1;
-    ctx.fillRect(MX,MY,MM,MM);ctx.strokeRect(MX,MY,MM,MM);
-    // Draw houses as tiny rects
-    ctx.fillStyle='#1a3a1a';
-    for(const h of HOUSES){
-      ctx.fillRect(MX+h.x*SCALE,MY+h.y*SCALE,Math.max(2,h.w*SCALE),Math.max(2,h.h*SCALE));
-    }
-    // Draw remote players
-    for(const[id,rp] of Object.entries(remotePlayers)){
-      if(rp.x==null||rp.y==null)continue;
-      ctx.fillStyle=rp.alive===false?'#555':'#00aaff';
-      ctx.beginPath();ctx.arc(MX+rp.x*SCALE,MY+rp.y*SCALE,3,0,Math.PI*2);ctx.fill();
-      // Draw name above dot
-      ctx.font='6px monospace';ctx.fillStyle='#00ccff';ctx.textAlign='center';
-      ctx.fillText(rp.name||'?',MX+rp.x*SCALE,MY+rp.y*SCALE-4);
-    }
-    // Draw zombies (red dots, small)
-    ctx.fillStyle='rgba(255,30,30,0.85)';
-    for(const z of zombies){
-      if(z.x==null||z.y==null)continue;
-      ctx.beginPath();ctx.arc(MX+z.x*SCALE,MY+z.y*SCALE,1.5,0,Math.PI*2);ctx.fill();
-    }
-    // Draw boss (pulsing red, bigger)
-    if(bossActive&&boss){
-      const pulse=0.7+0.3*Math.sin(Date.now()*0.008);
-      ctx.fillStyle=`rgba(255,0,255,${pulse})`;
-      ctx.beginPath();ctx.arc(MX+boss.x*SCALE,MY+boss.y*SCALE,4,0,Math.PI*2);ctx.fill();
-    }
-    // Draw local player (green)
-    ctx.fillStyle='#00ff44';
-    ctx.beginPath();ctx.arc(MX+player.x*SCALE,MY+player.y*SCALE,3.5,0,Math.PI*2);ctx.fill();
-    // Label
-    ctx.font='bold 6px monospace';ctx.fillStyle='#88ff88';ctx.textAlign='center';
-    ctx.fillText('TÚ',MX+player.x*SCALE,MY+player.y*SCALE-5);
-    ctx.restore();
-  }
-}
-
-function drawPlayer(){
-  const{x,y,size,angle}=player;
-  ctx.save();ctx.translate(x,y);
-  ctx.shadowBlur=16;ctx.shadowColor='#0f0';
-  ctx.fillStyle='#2e6b2e';ctx.beginPath();ctx.arc(0,0,size,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#4caf50';ctx.beginPath();ctx.arc(0,0,size*.65,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(150,255,150,.18)';ctx.beginPath();ctx.arc(-size*.18,-size*.18,size*.44,0,Math.PI*2);ctx.fill();
-  ctx.rotate(angle);
-  ctx.fillStyle='#388e3c';ctx.fillRect(size*.4,-3,size*.7,6);
-  ctx.fillStyle=WEAPONS[wepIdx].color;ctx.shadowColor=WEAPONS[wepIdx].color;ctx.shadowBlur=8;
-  ctx.fillRect(size*.9,-2,size*.9,4);
-  // Name tag
-  ctx.rotate(-angle);
-  ctx.fillStyle='#ffdd00';ctx.font='bold 9px monospace';ctx.textAlign='center';
-  ctx.fillText(PLAYER_NAME,0,-22);
-  ctx.restore();
-}
-function drawZombie(z){
-  const bob=Math.sin(z.walk)*2.2;
-  ctx.save();ctx.translate(z.x,z.y+bob);
-  const low=z.hp<z.maxHp*.35;
-  ctx.shadowBlur=low?12:4;ctx.shadowColor=low?'#f00':'#111';
-  ctx.fillStyle=z.col;ctx.beginPath();ctx.arc(0,0,z.sz,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.arc(0,0,z.sz*.5,0,Math.PI*2);ctx.fill();
-  ctx.save();ctx.rotate(z.angle);
-  ctx.fillStyle='#f00';
-  ctx.beginPath();ctx.arc(z.sz*.42,-z.sz*.28,2.5,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(z.sz*.42,z.sz*.28,2.5,0,Math.PI*2);ctx.fill();
-  ctx.restore();
-  if(z.hp<z.maxHp){
-    const bw=z.sz*2.6,bh=3;
-    ctx.fillStyle='#300';ctx.fillRect(-bw/2,-z.sz-9,bw,bh);
-    ctx.fillStyle=z.hp>z.maxHp*.5?'#0f0':'#f00';
-    ctx.fillRect(-bw/2,-z.sz-9,bw*(z.hp/z.maxHp),bh);
-  }
-  ctx.restore();
-}
-function drawBoss(){
-  const b=boss,t=Date.now()*.003;
-  ctx.save();ctx.translate(b.x,b.y);
-  if(b.dashing){ctx.shadowBlur=40;ctx.shadowColor='#fff';ctx.strokeStyle='rgba(255,255,255,.6)';ctx.lineWidth=8;ctx.beginPath();ctx.arc(0,0,b.sz*1.2,0,Math.PI*2);ctx.stroke();}
-  ctx.shadowBlur=35;ctx.shadowColor=b.col2;
-  ctx.strokeStyle=b.col2+'bb';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,b.sz*1.6,0,Math.PI*2);ctx.stroke();
-  ctx.strokeStyle=b.eyeCol+'55';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,b.sz*2.1+(Math.sin(t*3)*4),0,Math.PI*2);ctx.stroke();
-  ctx.fillStyle=b.col1;ctx.beginPath();ctx.arc(0,0,b.sz,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=b.col2;ctx.beginPath();ctx.arc(0,0,b.sz*.72,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=b.col3;ctx.beginPath();ctx.arc(0,0,b.sz*.38,0,Math.PI*2);ctx.fill();
-  ctx.save();ctx.rotate(b.angle);
-  ctx.shadowColor=b.eyeCol;ctx.shadowBlur=14;ctx.fillStyle=b.eyeCol;
-  const es=5+b.bossNum;
-  ctx.beginPath();ctx.arc(b.sz*.52,-b.sz*.34,es,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(b.sz*.52,b.sz*.34,es,0,Math.PI*2);ctx.fill();
-  if(b.charging){ctx.shadowBlur=24;ctx.globalAlpha=.5+.5*Math.abs(Math.sin(t*8));ctx.beginPath();ctx.arc(b.sz*.52,-b.sz*.34,es*1.8,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(b.sz*.52,b.sz*.34,es*1.8,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
-  ctx.restore();
-  const bw=90+b.bossNum*8,bh=10;const pct=b.hp/b.maxHp;
-  ctx.fillStyle='#300';ctx.fillRect(-bw/2,-b.sz-26,bw,bh);
-  ctx.fillStyle=`rgb(${Math.floor(255*(1-pct))},${Math.floor(255*pct)},0)`;
-  ctx.fillRect(-bw/2,-b.sz-26,bw*pct,bh);
-  ctx.fillStyle='#fff';ctx.font='bold 11px monospace';ctx.textAlign='center';
-  ctx.fillText('BOSS #'+b.bossNum,0,-b.sz-35);
-  if(b.lastAbility){
-    const abilNames={spread:'MISILES',spiral:'ESPIRAL',ring:'ONDA',summon:'INVOCA',dash:'EMBESTIDA',laser:'LASER',mines:'MINAS',teleport:'TELEPORT',crossfire:'CRUZADO',frenzy:'FRENESI'};
-    const abilCols={spread:b.col2,spiral:'#f0f',ring:'#ff0',summon:'#a0f',dash:'#fff',laser:'#0ff',mines:'#f00',teleport:'#0ff',crossfire:'#f60',frenzy:b.col3};
-    ctx.fillStyle=abilCols[b.lastAbility]||'#fff';ctx.font='bold 10px monospace';
-    ctx.fillText('['+(abilNames[b.lastAbility]||b.lastAbility)+']',0,-b.sz-46);
-  }
-  ctx.restore();
-}
-function drawAlly(a){
-  const tw=Date.now()*.002;
-  ctx.save();ctx.translate(a.x,a.y);
-  if(a.kind==='soldier'){
-    ctx.shadowBlur=12;ctx.shadowColor='#00bfff';
-    ctx.fillStyle='#01579b';ctx.beginPath();ctx.arc(0,0,a.sz,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#00bfff';ctx.beginPath();ctx.arc(0,0,a.sz*.6,0,Math.PI*2);ctx.fill();
-    ctx.save();ctx.rotate(a.angle);ctx.fillStyle='#00bfff';ctx.fillRect(a.sz*.5,-2,a.sz*1.1,4);ctx.restore();
-    ctx.fillStyle='#0d47a1';ctx.beginPath();ctx.ellipse(0,-a.sz*.5,a.sz*.55,a.sz*.34,0,Math.PI,Math.PI*2);ctx.fill();
-  } else if(a.kind==='tank'){
-    ctx.shadowBlur=18;ctx.shadowColor='#7ec850';
-    ctx.save();ctx.rotate(a.angle);
-    ctx.fillStyle='#33691e';ctx.fillRect(-a.sz,-a.sz*.68,a.sz*2,a.sz*1.36);
-    ctx.fillStyle='#558b2f';ctx.fillRect(-a.sz*.7,-a.sz*.5,a.sz*1.4,a.sz);
-    ctx.fillStyle='#7ec850';ctx.beginPath();ctx.arc(0,0,a.sz*.55,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#aed581';ctx.fillRect(a.sz*.55,-4,a.sz*1.3,8);
-    ctx.fillStyle='#1b5e20';ctx.fillRect(-a.sz,-a.sz*.88,a.sz*2,a.sz*.22);ctx.fillRect(-a.sz,a.sz*.66,a.sz*2,a.sz*.22);
-    ctx.restore();
-  } else {
-    ctx.shadowBlur=15;ctx.shadowColor='#ffdb4d';
-    ctx.strokeStyle=`rgba(255,219,77,${.25+.12*Math.sin(tw*14)})`;ctx.lineWidth=3;
-    ctx.beginPath();ctx.ellipse(0,0,a.sz*1.9,a.sz*.28,tw*10,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle='#f57f17';ctx.beginPath();ctx.arc(0,0,a.sz,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#ffca28';ctx.beginPath();ctx.arc(0,0,a.sz*.55,0,Math.PI*2);ctx.fill();
-    ctx.save();ctx.rotate(a.angle);ctx.fillStyle='#ffd54f';ctx.fillRect(a.sz*.5,-2,a.sz*1.1,4);ctx.restore();
-  }
-  if(a.kind!=='soldier'&&a.hp<a.maxHp){
-    const bw=a.sz*3,bh=3;
-    ctx.fillStyle='#300';ctx.fillRect(-bw/2,a.sz+6,bw,bh);
-    ctx.fillStyle=a.col;ctx.fillRect(-bw/2,a.sz+6,bw*(a.hp/a.maxHp),bh);
-  }
-  ctx.restore();
-}
-function drawHouse(h){
-  ctx.fillStyle='rgba(0,0,0,.28)';ctx.fillRect(h.x+7,h.y+7,h.w,h.h);
-  ctx.fillStyle='#162616';ctx.fillRect(h.x,h.y,h.w,h.h);
-  ctx.fillStyle='#1e3a1e';ctx.fillRect(h.x+6,h.y+6,h.w-12,h.h-12);
-  ctx.strokeStyle='#2e5a2e';ctx.lineWidth=2;ctx.strokeRect(h.x,h.y,h.w,h.h);
-  ctx.strokeStyle='rgba(45,90,45,.4)';ctx.lineWidth=1;ctx.strokeRect(h.x+6,h.y+6,h.w-12,h.h-12);
-  ctx.fillStyle='rgba(90,180,90,.15)';
-  ctx.fillRect(h.x+14,h.y+18,20,16);ctx.fillRect(h.x+h.w-34,h.y+18,20,16);
-  ctx.strokeStyle='#2e5a2e';ctx.lineWidth=1;
-  ctx.strokeRect(h.x+14,h.y+18,20,16);ctx.strokeRect(h.x+h.w-34,h.y+18,20,16);
-  ctx.beginPath();
-  ctx.moveTo(h.x+24,h.y+18);ctx.lineTo(h.x+24,h.y+34);
-  ctx.moveTo(h.x+14,h.y+26);ctx.lineTo(h.x+34,h.y+26);
-  ctx.moveTo(h.x+h.w-24,h.y+18);ctx.lineTo(h.x+h.w-24,h.y+34);
-  ctx.moveTo(h.x+h.w-34,h.y+26);ctx.lineTo(h.x+h.w-14,h.y+26);
-  ctx.stroke();
-  ctx.fillStyle='#060e06';
-  const d=h.door;
-  if(d.s==='b')ctx.fillRect(h.x+d.p-GAP/2,h.y+h.h-22,GAP,24);
-  else if(d.s==='t')ctx.fillRect(h.x+d.p-GAP/2,h.y-2,GAP,24);
-  else if(d.s==='l')ctx.fillRect(h.x-2,h.y+d.p-GAP/2,24,GAP);
-  else ctx.fillRect(h.x+h.w-22,h.y+d.p-GAP/2,24,GAP);
-  ctx.strokeStyle='#4a8a4a';ctx.lineWidth=2;
-  if(d.s==='b'){
-    ctx.beginPath();ctx.moveTo(h.x+d.p-GAP/2,h.y+h.h-22);ctx.lineTo(h.x+d.p-GAP/2,h.y+h.h+2);
-    ctx.moveTo(h.x+d.p+GAP/2,h.y+h.h-22);ctx.lineTo(h.x+d.p+GAP/2,h.y+h.h+2);ctx.stroke();
-  }
-}
-
-function dist2(ax,ay,bx,by){return(ax-bx)**2+(ay-by)**2;}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-
-let msgT=null;
-function showMsg(txt,d=1600){
-  const el=document.getElementById('mb');el.innerHTML=txt;el.style.opacity='1';
-  if(msgT)clearTimeout(msgT);msgT=setTimeout(()=>el.style.opacity='0',d);
-}
-function endGame(won){
-  gs_state='menu';
-  const ov=document.getElementById('ov');
-  ov.querySelector('h1').innerHTML=won?'ERES IMPARABLE!':'GAME OVER';
-  ov.querySelector('p').innerHTML=won
-    ?'Llegaste muy lejos!<br>Ronda: '+round+' | Kills: '+kills+' | Bosses: '+bossCount
-    :'Caiste en Ronda '+round+'<br>Kills: '+kills+' | Bosses derrotados: '+bossCount+'<br><br>Intentalo de nuevo?';
-  ov.style.display='flex';
-  document.getElementById('sb').textContent='JUGAR DE NUEVO';
-}
-
-// ── Input ─────────────────────────────────────────────────────────────────
-canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;});
-canvas.addEventListener('mousedown',e=>{if(e.button===0)mouseDown=true;});
-canvas.addEventListener('mouseup',e=>{if(e.button===0){mouseDown=false;fireCharge=Math.max(0,fireCharge-.08);}});
-canvas.addEventListener('contextmenu',e=>e.preventDefault());
-
-window.addEventListener('keydown',e=>{
-  if(chatOpen){return;}
-  keys[e.code]=true;
-  if(gs_state!=='playing')return;
-  if(e.code==='Digit1'){wepIdx=0;updateHUD();}
-  if(e.code==='Digit2'){wepIdx=1;updateHUD();}
-  if(e.code==='Digit3'){wepIdx=2;updateHUD();}
-  if(e.code==='Digit4'){wepIdx=3;updateHUD();}
-  if(e.code==='KeyG')throwGrenade();
-  if(e.code==='KeyT'&&GAME_MODE==='online'){openChatInput();}
-  if(e.code==='Escape'&&GAME_MODE==='online'){
-    if(chatOpen)closeChatInput();
-  }
-  if(e.code==='ShiftLeft'||e.code==='ShiftRight'){
+  // Boton sprint - toggle
+  spBtn.addEventListener('touchstart',e=>{
+    e.preventDefault();
     sprintToggle=!sprintToggle;
+    spBtn.style.background=sprintToggle?'rgba(0,40,40,.9)':'rgba(0,25,0,.80)';
+    spBtn.style.borderColor=sprintToggle?'rgba(0,255,255,.8)':'rgba(0,200,200,.35)';
+    spBtn.innerHTML=sprintToggle?'&#9889; SPRINT<br>ON':'&#9889; SPRINT';
     const sb=document.getElementById('sprintBtn');
-    if(sb){sb.style.color=sprintToggle?'#0f0':'#7fff7f';sb.style.borderColor=sprintToggle?'#0f0':'#3a7a3a';sb.style.boxShadow=sprintToggle?'0 0 10px #0f0':'none';sb.textContent='SHIFT = SPRINT ['+(sprintToggle?'ON ⚡':'OFF')+']';}
-  }
-  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
-});
-window.addEventListener('keyup',e=>keys[e.code]=false);
+    if(sb){sb.style.color=sprintToggle?'#0f0':'#7fff7f';sb.textContent='SHIFT = SPRINT ['+(sprintToggle?'ON \u26a1':'OFF')+']';}
+  },{passive:false});
+})();
+"""
 
-document.getElementById('sb').addEventListener('click',()=>{
-  if (GAME_MODE === 'online') {
-    // In online mode, just restart locally (already connected)
-    gameStarted = false;
-    startGameEngine();
-  } else {
-    gs_state='playing';document.getElementById('ov').style.display='none';
-    initGame();lastTime=performance.now();requestAnimationFrame(update);
-  }
-});
+# Insert before last </script>
+if '</script>' in html:
+    parts = html.rsplit('</script>', 1)
+    html = parts[0] + mobile_js + '\n</script>' + parts[1]
+    changes += 1
+    print("  OK: JavaScript de controles moviles")
 
-// ── Start game engine ────────────────────────────────────────────────────
-let gameStarted = false;
-function startGameEngine() {
-  if (gameStarted) return;
-  gameStarted = true;
-  gs_state = 'playing';
-  document.getElementById('ov').style.display = 'none';
-  initGame();
-  lastTime = performance.now();
-  requestAnimationFrame(update);
-}
+# ================================================================
+# GUARDAR
+# ================================================================
+with open(sys.argv[2], 'w', encoding='utf-8') as f:
+    f.write(html)
 
-if (GAME_MODE !== 'online') {
-  // Solo/bots: start immediately
-  startGameEngine();
-}
-// Online mode: startGameEngine() is called from joinedServer handler
-</script>
-</body>
-</html>
+print(f"\n✓ {changes} cambios aplicados")
+print(f"  Original: {original_len:,} bytes")
+print(f"  Resultado: {len(html):,} bytes")
+print(f"  Guardado en: {sys.argv[2]}")
